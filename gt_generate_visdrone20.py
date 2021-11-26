@@ -10,10 +10,10 @@ testDataDirectory = 'VisDrone2020-CC/test_data/images/'
 
 if not os.path.exists(trainDataDirectory):
     os.makedirs(trainDataDirectory)
-    os.makedirs(trainDataDirectory.replace('images','gt_show'))
-    os.makedirs(trainDataDirectory.replace('images','images_crop'))
-    os.makedirs(trainDataDirectory.replace('images','gt_fidt_map'))
+    os.makedirs(trainDataDirectory.replace('images','gt_density_show'))
     os.makedirs(trainDataDirectory.replace('images','gt_density_map'))
+    os.makedirs(trainDataDirectory.replace('images','gt_fidt_map'))
+    os.makedirs(trainDataDirectory.replace('images','images_crop'))
     
 if not os.path.exists(testDataDirectory):
     os.makedirs(testDataDirectory)
@@ -54,7 +54,6 @@ for i in range(len(gt_paths)):
     if(gt_path.split('/')[2].split('.')[0] in trainList):
         with open(gt_path, "r") as f:   # Apertura file
             gt_file = f.readlines()     # Lettura file
-            
         gt_file = np.array(gt_file)     # Scrivo in un array, tutte le coordinate delle persone
 
     for k in range(1, 31):
@@ -69,13 +68,15 @@ for i in range(len(gt_paths)):
         save_filename = firstSplit + '_' + secondSplit
 
         Img_data = cv2.imread(img_path)
+        
         rate_h = 768.0 / Img_data.shape[0] # Altezza
         rate_w = 1156.0 / Img_data.shape[1] # Larghezza
-
         Img_data = cv2.resize(Img_data, (0, 0), fx=rate_w, fy=rate_h)
+        
         kpoint = np.zeros((Img_data.shape[0], Img_data.shape[1]))
         d_map = (np.zeros((Img_data.shape[0], Img_data.shape[1])) + 255).astype(np.uint8)
 
+        # Da capire se questo influisce sulle immagini di Test o meno
         for l in range(len(gt_file)):
            fname = int(gt_file[l].split(',')[0])
            
@@ -91,7 +92,7 @@ for i in range(len(gt_paths)):
         # in VisDrone2020-CC/train_data/images/00001_00001.jpg etc.
         # solo per visualizzazione
         save_img = trainDataDirectory + save_filename
-        Img_data = cv2.cvtColor(Img_data, cv2.COLOR_BGR2GRAY)
+        #Img_data = cv2.cvtColor(Img_data, cv2.COLOR_BGR2GRAY)
         #cv2.imwrite(save_img, Img_data)
         
         # Salvataggio immagini ridimensionate in 1156x768
@@ -106,16 +107,18 @@ for i in range(len(gt_paths)):
 
         # Salvataggio immagini ridimensionate in 
         # 1156x768 a cui viene applicato il GaussianFilter
-        # in VisDrone2020-CC/train_data/gt_show/00001_00001.jpg etc.
+        # in VisDrone2020-CC/train_data/gt_density_show/00001_00001.jpg etc.
         # Solo per visualizzazione.
         density_map = density_map
         density_map = density_map / np.max(density_map) * 255
         density_map = density_map.astype(np.uint8)
         density_map = cv2.applyColorMap(density_map, 2)
-        cv2.imwrite(save_img.replace('images', 'gt_show').replace('jpg', 'jpg'), density_map)
+        cv2.imwrite(save_img.replace('images', 'gt_density_show').replace('jpg', 'jpg'), density_map)
         
         #-----------------------#
         
+        # Se ci troviamo in un file della trainList, allora ci prendiamo 6 sub-images
+        # e per ognuna di queste mi calcolo il ground_truth
         if(gt_path.split('/')[2].split('.')[0] in trainList):
             height, width = Img_data.shape[0], Img_data.shape[1]
             m = int(width / 384)
@@ -125,23 +128,21 @@ for i in range(len(gt_paths)):
             # salviamolo nella cartella opportuna "VisDrone2020-CC/train_data/"
             for i in range(0, m):
                 for j in range(0, n):
-                    # Per ogni immagine, la divido in parti uguali da 384x384 ciasuno
+                    # Per ogni immagine, la divido in parti uguali da 384x384 ciascuno
                     # sia per l'altezza, sia per la larghezza.
                     crop_img = Img_data[j * 384: 384 * (j + 1), i * 384:(i + 1) * 384, ]
                     crop_kpoint = kpoint[j * 384: 384 * (j + 1), i * 384:(i + 1) * 384]
                     gt_count = np.sum(crop_kpoint) # ---> Il ground_truth sarà la somma
                                                    #      di tutti i gt di tutte le sub-immagini
                                                    
-                    # Salvataggio immagini ridimensionate in 
-                    # 384x384 a cui viene applicato il GaussianFilter
-                    # in VisDrone2020-CC/train_data/images_crop/00001/00001_0_0.jpg etc.
+                    # Salvataggio immagini ridimensionate in 384x384 all'interno di
+                    # VisDrone2020-CC/train_data/images_crop/00001/00001_0_0.jpg etc.
                     # Solo per visualizzazione
                     save_img = trainDataDirectory.replace('images', 'images_crop') + save_filename.split("_")[0] + '_' + save_filename.split("_")[1].split(".")[0] + '_' + str(i) + '_' + str(j) + '.jpg' 
                     cv2.imwrite(save_img, crop_img)
 
-                    # Salvataggio immagini ridimensionate in 
-                    # 384x384 a cui viene applicato il GaussianFilter
-                    # in VisDrone2020-CC/train_data/gt_density_map/00001/00001_0_0.h5 etc.
+                    # Salvataggio immagini ridimensionate in 384x384 all'interno di
+                    # VisDrone2020-CC/train_data/gt_density_map/00001/00001_0_0.h5 etc.
                     # Qui viene salvato il gt_count
                     h5_path = save_img.replace('.jpg', '.h5').replace('images_crop', 'gt_density_map')
                     with h5py.File(h5_path, 'w') as hf:
@@ -154,8 +155,7 @@ for i in range(len(gt_paths)):
         # salviamolo nella cartella opportuna "VisDrone2020-CC/test_data/"
         else:
             
-            # Salvataggio immagini ridimensionate in 
-            # 384x384 a cui viene applicato il GaussianFilter
+            # Salvataggio immagini ridimensionate in 1156x768 all'interno di
             # in VisDrone2020-CC/test_data/images/00011/00001.jpg etc.
             # Solo per visualizzazione
             save_img = testDataDirectory + save_filename.split("_")[0] + '_' + save_filename.split("_")[1].split(".")[0] + '_' + '.jpg' 
