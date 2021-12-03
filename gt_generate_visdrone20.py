@@ -14,6 +14,7 @@ if not os.path.exists(trainDataDirectory):
     #os.makedirs(trainDataDirectory.replace('images','images_crop'))
     os.makedirs(trainDataDirectory.replace('images','gt_fidt_map'))
     os.makedirs(trainDataDirectory.replace('images','gt_density_map'))
+    os.makedirs(trainDataDirectory.replace('images','images_crop'))
     
 if not os.path.exists(testDataDirectory):
     os.makedirs(testDataDirectory)
@@ -23,7 +24,7 @@ gt_paths=[]
 testList = np.loadtxt('VisDrone2020-CC/testlist.txt', delimiter=" ", dtype="str") 
 trainList = np.loadtxt('VisDrone2020-CC/trainlist.txt', delimiter=" ", dtype="str")
 
-for k in range(1,10):
+for k in range(1,112):
         if k < 10:
             gt_paths.append(path + '/0000' + str(k) + '.txt')
         elif k < 100:
@@ -68,13 +69,15 @@ for i in range(len(gt_paths)):
         save_filename = firstSplit + '_' + secondSplit
 
         Img_data = cv2.imread(img_path)
+        
         rate_h = 768.0 / Img_data.shape[0] # Altezza
         rate_w = 1156.0 / Img_data.shape[1] # Larghezza
-
         Img_data = cv2.resize(Img_data, (0, 0), fx=rate_w, fy=rate_h)
+        
         kpoint = np.zeros((Img_data.shape[0], Img_data.shape[1]))
         d_map = (np.zeros((Img_data.shape[0], Img_data.shape[1])) + 255).astype(np.uint8)
 
+        # Da capire se questo influisce sulle immagini di Test o meno
         for l in range(len(gt_file)):
            fname = int(gt_file[l].split(',')[0])
            
@@ -115,11 +118,16 @@ for i in range(len(gt_paths)):
         # in VisDrone2020-CC/train_data/gt_show/00001_00001.jpg oppure
         # in VisDrone2020-CC/test_data/gt_show/00001_00001.jpg etc.
         # -- Solo per visualizzazione --
+        density_map = density_map
+        density_map = density_map / np.max(density_map) * 255
+        density_map = density_map.astype(np.uint8)
         density_map = cv2.applyColorMap(density_map, 2)
-        cv2.imwrite(save_img.replace('images', 'gt_show').replace('jpg', 'jpg'), density_map)
+        cv2.imwrite(save_img.replace('images', 'gt_density_show').replace('jpg', 'jpg'), density_map)
         
         #-----------------------#
         
+        # Se ci troviamo in un file della trainList, allora ci prendiamo 6 sub-images
+        # e per ognuna di queste mi calcolo il ground_truth
         if(gt_path.split('/')[2].split('.')[0] in trainList):
             height, width = Img_data.shape[0], Img_data.shape[1]
             m = int(width / 384)
@@ -143,9 +151,8 @@ for i in range(len(gt_paths)):
                     save_img = trainDataDirectory + save_filename.split("_")[0] + '_' + save_filename.split("_")[1].split(".")[0] + '_' + str(i) + '_' + str(j) + '.jpg' 
                     cv2.imwrite(save_img, crop_img)
 
-                    # Salvataggio immagini ridimensionate in 
-                    # 384x384 a cui viene applicato il GaussianFilter
-                    # in VisDrone2020-CC/train_data/gt_density_map/00001/00001_0_0.h5 etc.
+                    # Salvataggio immagini ridimensionate in 384x384 all'interno di
+                    # VisDrone2020-CC/train_data/gt_density_map/00001/00001_0_0.h5 etc.
                     # Qui viene salvato il gt_count
                     h5_path = save_img.replace('images', 'gt_density_map').replace('.jpg', '.h5')
                     with h5py.File(h5_path, 'w') as hf:
@@ -157,8 +164,8 @@ for i in range(len(gt_paths)):
         # Se il file che stiamo trattando non si trova all'interno della testList
         # salviamolo nella cartella opportuna "VisDrone2020-CC/test_data/"
         else:
-            # Salvataggio immagini ridimensionate in 
-            # 384x384 a cui viene applicato il GaussianFilter
+            
+            # Salvataggio immagini ridimensionate in 1156x768 all'interno di
             # in VisDrone2020-CC/test_data/images/00011/00001.jpg etc.
             # -- Solo per visualizzazione --
             save_img = testDataDirectory + save_filename.split("_")[0] + '_' + save_filename.split("_")[1].split(".")[0] + '.jpg' 
