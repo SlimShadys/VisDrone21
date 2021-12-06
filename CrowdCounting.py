@@ -16,7 +16,7 @@ class CustomDataset(Dataset):
     def __getitem__(self, idx):  
         imageShortName = self.img_labels.iloc[idx, 0];
         
-        # Se il nome è minore di 10, allora concateniam 4 zeri, altrimenti 3
+        # Se il nome è minore di 10, allora concateniamo 4 zeri, altrimenti 3
         if imageShortName < 10:
             imgFullName = "0000" + str(imageShortName) + ".jpg";
         else:

@@ -11,7 +11,6 @@ testDataDirectory = 'VisDrone2020-CC/test_data/images/'
 if not os.path.exists(trainDataDirectory):
     os.makedirs(trainDataDirectory)
     os.makedirs(trainDataDirectory.replace('images','gt_show'))
-    #os.makedirs(trainDataDirectory.replace('images','images_crop'))
     os.makedirs(trainDataDirectory.replace('images','gt_fidt_map'))
     os.makedirs(trainDataDirectory.replace('images','gt_density_map'))
     os.makedirs(trainDataDirectory.replace('images','images_crop'))
