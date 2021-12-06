@@ -1,0 +1,8 @@
+## Ignore VisDrone train/test data and unneeded files
+
+# VisDrone
+VisDrone2020-CC/test_data/
+VisDrone2020-CC/train_data/
+
+# TransCrowd
+*.pth
