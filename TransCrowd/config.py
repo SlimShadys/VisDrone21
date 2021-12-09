@@ -47,5 +47,9 @@ parser.add_argument('--lr', type=float, default=1e-5,
 parser.add_argument('--model_type', type=str, default='token',
                     help='model type')
 
+# Early Stopping
+parser.add_argument('--patience', type=int, default=0,
+                    help='how long to wait after last time validation loss improved.')
+
 args = parser.parse_args()
 return_args = parser.parse_args()

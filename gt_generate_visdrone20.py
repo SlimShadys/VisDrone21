@@ -17,6 +17,7 @@ if not os.path.exists(trainDataDirectory):
     
 if not os.path.exists(testDataDirectory):
     os.makedirs(testDataDirectory)
+    os.makedirs(testDataDirectory.replace('images','gt_fidt_map'))
     os.makedirs(testDataDirectory.replace('images','gt_density_map'))
     
 gt_paths=[]
@@ -140,9 +141,8 @@ for i in range(len(gt_paths)):
                     # sia per l'altezza, sia per la larghezza.
                     crop_img = Img_data[j * 384: 384 * (j + 1), i * 384:(i + 1) * 384, ]
                     crop_kpoint = kpoint[j * 384: 384 * (j + 1), i * 384:(i + 1) * 384]
-                    gt_count = np.sum(crop_kpoint) # ---> Il ground_truth sarà la somma
-                                                   #      di tutti i gt di tutte le sub-immagini
-                                                   
+                    gt_count = np.sum(crop_kpoint).astype(np.float32) # ---> Il ground_truth sarà la somma
+                                                                      #      di tutti i gt di tutte le sub-immagini
                     # Salvataggio immagini ridimensionate in 
                     # 384x384 a cui viene applicato il GaussianFilter
                     # in VisDrone2020-CC/train_data/images/00001/00001_0_0.jpg etc.
@@ -170,7 +170,7 @@ for i in range(len(gt_paths)):
             save_img = testDataDirectory + save_filename.split("_")[0] + '_' + save_filename.split("_")[1].split(".")[0] + '.jpg' 
             cv2.imwrite(save_img, Img_data)
             
-            gt_count = np.sum(kpoint)
+            gt_count = np.sum(kpoint).astype(np.float32)
             h5_path = save_img.replace('images', 'gt_density_map').replace('.jpg', '.h5')
             with h5py.File(h5_path, 'w') as hf:
                 hf['gt_count'] = gt_count

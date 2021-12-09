@@ -13,19 +13,29 @@ import nni
 from nni.utils import merge_parameter
 from config import return_args, args
 import numpy as np
+import resource
+import platform
+import torch_xla
+import torch_xla.core.xla_model as xm
 from image import load_data
+import matplotlib.pyplot as plt
+from datetime import datetime
+from pytorchtools import EarlyStopping
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
+from google.colab import auth
+from oauth2client.client import GoogleCredentials
 
 warnings.filterwarnings('ignore')
 import time
+
+TPUdevice = xm.xla_device()
 
 setup_seed(args.seed)
 
 logger = logging.getLogger('mnist_AutoML')
 
 def main(args):
-    if args['dataset'] == 'VisDrone':
-        train_file = './npydata/visDrone_train.npy'
-        test_file = './npydata/visDrone_test.npy'
     if args['dataset'] == 'ShanghaiA':
         train_file = './npydata/ShanghaiA_train.npy'
         test_file = './npydata/ShanghaiA_test.npy'
@@ -50,7 +60,25 @@ def main(args):
     with open(test_file, 'rb') as outfile:
         val_list = np.load(outfile).tolist()
 
-    print(len(train_list), len(val_list))
+    print("\nLenght Train list: " + str(len(train_list)))
+    print("Lenght Test list: " + str(len(val_list)))
+
+    try:
+        print('*-----------------------------------------*')
+        print('Cuda available: {}'.format(torch.cuda.is_available()))
+        print("GPU: " + torch.cuda.get_device_name(torch.cuda.current_device()))
+        print('*-----------------------------------------*')
+    except:
+        print('*-----------------------------------------*')
+        pass
+        
+    try:
+        print('*-----------------------------------------*')
+        print('TPU Device: {}'.format(TPUdevice))
+        print('*-----------------------------------------*')
+    except:
+        print('*-----------------------------------------*')
+        pass        
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args['gpu_id']
 
@@ -60,9 +88,9 @@ def main(args):
         model = base_patch16_384_gap(pretrained=True)
 
     model = nn.DataParallel(model, device_ids=[0])
-    model = model.cuda()
+    model = model.to(TPUdevice)
 
-    criterion = nn.L1Loss(size_average=False).cuda()
+    criterion = nn.L1Loss(size_average=False).to(TPUdevice)
 
     optimizer = torch.optim.Adam(
         [  #
@@ -131,12 +159,18 @@ def pre_data(train_list, args, train):
         data_keys[count] = blob
         count += 1
 
-        '''for debug'''
-        # if j> 10:
-        #     break
+# =============================================================================
+#         '''for debug'''
+#         if j > 10:
+#             break
+# =============================================================================
     return data_keys
 
 def train(Pre_data, model, criterion, optimizer, epoch, args, scheduler):
+       
+    # initialize the early_stopping object
+    early_stopping = EarlyStopping(patience=args['patience'], verbose=True)
+    
     losses = AverageMeter()
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -164,10 +198,10 @@ def train(Pre_data, model, criterion, optimizer, epoch, args, scheduler):
     for i, (fname, img, gt_count) in enumerate(train_loader):
 
         data_time.update(time.time() - end)
-        img = img.cuda()
-
+        img = img.to(TPUdevice)
+    
         out1 = model(img)
-        gt_count = gt_count.type(torch.FloatTensor).cuda().unsqueeze(1)
+        gt_count = gt_count.to(TPUdevice, torch.float32).unsqueeze(1)
 
         # print(out1.shape, kpoint.shape)
         loss = criterion(out1, gt_count)
@@ -234,6 +268,22 @@ def validate(Pre_data, model, args):
     mae = mae * 1.0 / (len(test_loader) * batch_size)
     mse = math.sqrt(mse / (len(test_loader)) * batch_size)
 
+    plt.figure(0,figsize=(8,8))
+
+    plt.plot(listMae, label='MAE')
+    plt.plot(listMse, label='MSE')
+
+    plt.ylabel('MAE/MSE')
+    plt.xlabel('Epochs')
+    plt.legend(loc='upper right', prop={'size': 15})
+    pltTitle = 'MAE-MSE_'+ datetime.now().strftime("%d_%m_%Y_%H_%M") +'.png'
+    plt.savefig(pltTitle)
+    
+    fileToUpload = drive.CreateFile({'title': pltTitle})
+    fileToUpload.SetContentFile(pltTitle)
+    fileToUpload.Upload()
+    print('Uploaded file with ID {}'.format(fileToUpload.get('id')))
+
     nni.report_intermediate_result(mae)
     print(' \n* MAE {mae:.3f}\n'.format(mae=mae), '* MSE {mse:.3f}'.format(mse=mse))
 
@@ -257,8 +307,49 @@ class AverageMeter(object):
         self.count += n
         self.avg = self.sum / self.count
 
+def memory_limit(percentage: float):
+    soft, hard = resource.getrlimit(resource.RLIMIT_AS)
+    resource.setrlimit(resource.RLIMIT_AS, (get_memory() * 1024 * percentage, hard))
+
+def get_memory():
+    with open('/proc/meminfo', 'r') as mem:
+        free_memory = 0
+        for i in mem:
+            sline = i.split()
+            if str(sline[0]) in ('MemFree:', 'Buffers:', 'Cached:'):
+                free_memory += int(sline[1])
+    print("Free memory available: " + str(free_memory))
+    return free_memory
+
+def memory(percentage):
+    if platform.system() != "Linux":
+        print('Limiting memory only works on Linux!')
+        return
+    def decorator(function):
+        def wrapper(*args, **kwargs):
+            memory_limit(percentage)
+            try:
+                function(*args, **kwargs)
+            except MemoryError:
+                mem = get_memory() / 1024 /1024
+                print('Remain: %.2f GB' % mem)
+                sys.stderr.write('\n\nERROR: Memory Exception\n')
+                sys.exit(1)
+        return wrapper
+    return decorator
 
 if __name__ == '__main__':
+    memory(0.9)
+    print('My memory is limited to 90%.')
+    
+    print("--------------------------")
+    print("** Google Drive Sign In **")
+    auth.authenticate_user()
+    gauth = GoogleAuth()
+    gauth.credentials = GoogleCredentials.get_application_default()
+    drive = GoogleDrive(gauth)
+    print("--------------------------")
+    
     tuner_params = nni.get_next_parameter()
     logger.debug(tuner_params)
     params = vars(merge_parameter(return_args, tuner_params))
