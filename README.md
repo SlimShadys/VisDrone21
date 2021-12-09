@@ -10,12 +10,13 @@ python gt_generate_visdrone20.py
 
 # Generate image list
 ```
-python TransCrowd\make_npydata.py
+cd TransCrowd
+python make_npydata.py
 ```
 
 # Training
 ```
-python TransCrowd/train.py --dataset VisDrone --save_path ./save_file/VisDrone --batch_size X --model_type 'token' --epoch X --print_freq 5
+python train.py --dataset VisDrone --save_path ./save_file/VisDrone --batch_size X --model_type 'token' --epoch X --print_freq 5
 ```
 
 - Gianmarco Scarano

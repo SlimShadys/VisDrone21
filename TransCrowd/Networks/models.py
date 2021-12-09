@@ -2,13 +2,13 @@
 # All rights reserved.
 import torch
 import torch.nn as nn
+import os
 from functools import partial
 import torch.nn.functional as F
 from timm.models.vision_transformer import VisionTransformer, _cfg
 from timm.models.registry import register_model
 from timm.models.layers import trunc_normal_
-
-
+import urllib.request
 
 class VisionTransformer_token(VisionTransformer):
     def __init__(self, *args, **kwargs):
@@ -48,9 +48,6 @@ class VisionTransformer_token(VisionTransformer):
         x = self.output1(x)
 
         return x
-
-
-
 
 class VisionTransformer_gap(VisionTransformer):
     def __init__(self, *args, **kwargs):
@@ -97,7 +94,10 @@ class VisionTransformer_gap(VisionTransformer):
         x = self.output1(x)
         return x
 
-
+def downloadPTHFile():
+    print("Downloading deit_base_patch16_384-8de9b5d1.pth ...")
+    url = "https://dl.fbaipublicfiles.com/deit/deit_base_patch16_384-8de9b5d1.pth"
+    urllib.request.urlretrieve(url, "./Networks/deit_base_patch16_384-8de9b5d1.pth")
 
 @register_model
 def base_patch16_384_token(pretrained=False, **kwargs):
@@ -106,6 +106,10 @@ def base_patch16_384_token(pretrained=False, **kwargs):
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     model.default_cfg = _cfg()
     if pretrained:
+      if not os.path.isfile('./Networks/deit_base_patch16_384-8de9b5d1.pth'):
+        downloadPTHFile()
+        print("Downloading done.")
+      else:
         '''download from https://dl.fbaipublicfiles.com/deit/deit_base_patch16_384-8de9b5d1.pth'''
         checkpoint = torch.load(
             './Networks/deit_base_patch16_384-8de9b5d1.pth')
@@ -121,6 +125,10 @@ def base_patch16_384_gap(pretrained=False, **kwargs):
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     model.default_cfg = _cfg()
     if pretrained:
+      if not os.path.isfile('./Networks/deit_base_patch16_384-8de9b5d1.pth'):
+        downloadPTHFile()
+        print("Downloading done.")
+      else:
         '''download from https://dl.fbaipublicfiles.com/deit/deit_base_patch16_384-8de9b5d1.pth'''
         checkpoint = torch.load(
             './Networks/deit_base_patch16_384-8de9b5d1.pth')

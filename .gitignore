@@ -5,4 +5,6 @@ VisDrone2020-CC/test_data/
 VisDrone2020-CC/train_data/
 
 # TransCrowd
+TransCrowd/__pycache__/
+TransCrowd/Networks/__pycache__/
 *.pth
