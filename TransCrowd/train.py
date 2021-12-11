@@ -1,30 +1,39 @@
 from __future__ import division
+
+import logging
+import math
+import os
+import platform
+import resource
+import sys
 import warnings
-from Networks.models import base_patch16_384_token, base_patch16_384_gap
+from datetime import datetime
+
+import matplotlib.pyplot as plt
+import nni
+import numpy as np
+import torch
 import torch.nn as nn
 from torchvision import transforms
-import dataset
-import math
-from utils import save_checkpoint, setup_seed
-import torch
-import os
-import logging
-import nni
 from nni.utils import merge_parameter
-from config import return_args, args
-import numpy as np
-import resource
-from image import load_data
-import matplotlib.pyplot as plt
-from datetime import datetime
-from pytorchtools import EarlyStopping
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
 from google.colab import auth
 from oauth2client.client import GoogleCredentials
+from pydrive.auth import GoogleAuth
+from pydrive.drive import GoogleDrive
+
+import dataset
+from config import args, return_args
+from image import load_data
+from Networks.models import base_patch16_384_gap, base_patch16_384_token
+from pytorchtools import EarlyStopping
+from utils import save_checkpoint, setup_seed
 
 warnings.filterwarnings('ignore')
 import time
+
+listMae = []
+listMse = []
+epochList = []
 
 setup_seed(args.seed)
 
@@ -114,7 +123,7 @@ def main(args):
         end1 = time.time()
 
         if epoch % 5 == 0 and epoch >= 10:
-            prec1 = validate(test_data, model, args)
+            prec1 = validate(test_data, model, args, epoch)
             end2 = time.time()
             is_best = prec1 < args['best_pred']
             args['best_pred'] = min(prec1, args['best_pred'])
@@ -203,29 +212,33 @@ def train(Pre_data, model, criterion, optimizer, epoch, args, scheduler):
         end = time.time()
 
         if i % args['print_freq'] == 0:
-            print('4_Epoch: [{0}][{1}/{2}]\t'
+            print('Epoch[{0}/{1}] -> [{2}/{3}]\t'
                   'Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
                   'Data {data_time.val:.3f} ({data_time.avg:.3f})\t'
                   'Loss {loss.val:.4f} ({loss.avg:.4f})\t'
                 .format(
-                epoch, i, len(train_loader), batch_time=batch_time,
+                epoch, args['epochs'], i, len(train_loader), batch_time=batch_time,
                 data_time=data_time, loss=losses))
 
     scheduler.step()
 
-def validate(Pre_data, model, args):
+def validate(Pre_data, model, args, epoch):
     print('begin test')
     batch_size = 1
     test_loader = torch.utils.data.DataLoader(
-        dataset.listDataset(Pre_data, args['save_path'],
-                            shuffle=False,
-                            transform=transforms.Compose([
-                                transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                                                            std=[0.229, 0.224, 0.225]),
-
-                            ]),
-                            args=args, train=False),
-        batch_size=1)
+                        dataset.listDataset(Pre_data,
+                                            args['save_path'],
+                                            shuffle=False,
+                                            transform=transforms.Compose([
+                                                transforms.ToTensor(),
+                                                transforms.Normalize(
+                                                    mean=[0.485, 0.456, 0.406],
+                                                    std=[0.229, 0.224, 0.225]
+                                                ),
+                                            ]),
+                                            args=args,
+                                            train=False),
+                        batch_size=1)
 
     model.eval()
 
@@ -249,26 +262,37 @@ def validate(Pre_data, model, args):
         mse += abs(gt_count - count) * abs(gt_count - count)
 
         if i % 15 == 0:
-            print('{fname} Gt {gt:.2f} Pred {pred}'.format(fname=fname[0], gt=gt_count, pred=count))
+            print('\n{fname}:\n- Gt {gt:.2f} - Pred {pred}'.format(fname=fname[0], gt=gt_count, pred=count))
 
     mae = mae * 1.0 / (len(test_loader) * batch_size)
     mse = math.sqrt(mse / (len(test_loader)) * batch_size)
 
-    plt.figure(0,figsize=(8,8))
+    listMae.append(mae)
+    listMse.append(mse)
+
+    epochList.append(epoch)
+    default_x_ticks = range(len(epochList))
+
+    plt.figure(figsize=(8,8))
 
     plt.plot(listMae, label='MAE')
     plt.plot(listMse, label='MSE')
 
     plt.ylabel('MAE/MSE')
     plt.xlabel('Epochs')
+    plt.xticks(default_x_ticks, epochList)
     plt.legend(loc='upper right', prop={'size': 15})
     pltTitle = 'MAE-MSE_'+ datetime.now().strftime("%d_%m_%Y_%H_%M") +'.png'
     plt.savefig(pltTitle)
 
-    fileToUpload = drive.CreateFile({'title': pltTitle})
-    fileToUpload.SetContentFile(pltTitle)
-    fileToUpload.Upload()
-    print('Uploaded file with ID {}'.format(fileToUpload.get('id')))
+    try:
+      fileToUpload = drive.CreateFile({'title': pltTitle})
+      fileToUpload.SetContentFile(pltTitle)
+      fileToUpload.Upload()
+      print('Uploaded file with ID {}'.format(fileToUpload.get('id')))
+    except:
+      print("Could not save file to Drive. Maybe access token has expired?")
+      pass
     
     nni.report_intermediate_result(mae)
     print(' \n* MAE {mae:.3f}\n'.format(mae=mae), '* MSE {mse:.3f}'.format(mse=mse))
@@ -296,6 +320,7 @@ class AverageMeter(object):
 def memory_limit(percentage: float):
     soft, hard = resource.getrlimit(resource.RLIMIT_AS)
     resource.setrlimit(resource.RLIMIT_AS, (get_memory() * 1024 * percentage, hard))
+    print(f'My memory is limited to {percentage}%')
 
 def get_memory():
     with open('/proc/meminfo', 'r') as mem:
@@ -325,9 +350,8 @@ def memory(percentage):
     return decorator
 
 if __name__ == '__main__':
-    #memory(0.9)
-    #print('My memory is limited to 90%.')
-    
+    memory(0.95)
+   
     print("----------------------------")
     print("** Google Drive Sign In **")
     auth.authenticate_user()
