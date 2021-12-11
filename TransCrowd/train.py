@@ -4,7 +4,8 @@ import logging
 import math
 import os
 import platform
-import resource
+if platform.system() == "Linux":
+    import resource
 import sys
 import warnings
 from datetime import datetime
@@ -16,10 +17,11 @@ import torch
 import torch.nn as nn
 from torchvision import transforms
 from nni.utils import merge_parameter
-from google.colab import auth
-from oauth2client.client import GoogleCredentials
-from pydrive.auth import GoogleAuth
-from pydrive.drive import GoogleDrive
+if platform.system() == "Linux":
+    from google.colab import auth
+    from oauth2client.client import GoogleCredentials
+    from pydrive.auth import GoogleAuth
+    from pydrive.drive import GoogleDrive
 
 import dataset
 from config import args, return_args
@@ -154,11 +156,10 @@ def pre_data(train_list, args, train):
         data_keys[count] = blob
         count += 1
 
-# =============================================================================
-#         '''for debug'''
-#         if j > 10:
-#             break
-# =============================================================================
+        '''for debug'''
+        if j > 300:
+            break
+
     return data_keys
 
 def train(Pre_data, model, criterion, optimizer, epoch, args, scheduler):
@@ -285,14 +286,15 @@ def validate(Pre_data, model, args, epoch):
     pltTitle = 'MAE-MSE_'+ datetime.now().strftime("%d_%m_%Y_%H_%M") +'.png'
     plt.savefig(pltTitle)
 
-    try:
-      fileToUpload = drive.CreateFile({'title': pltTitle})
-      fileToUpload.SetContentFile(pltTitle)
-      fileToUpload.Upload()
-      print('Uploaded file with ID {}'.format(fileToUpload.get('id')))
-    except:
-      print("Could not save file to Drive. Maybe access token has expired?")
-      pass
+    if platform.system() == "Linux":
+        try:
+          fileToUpload = drive.CreateFile({'title': pltTitle})
+          fileToUpload.SetContentFile(pltTitle)
+          fileToUpload.Upload()
+          print('Uploaded file with ID {}'.format(fileToUpload.get('id')))
+        except:
+          print("Could not save file to Drive. Maybe access token has expired?")
+          pass
     
     nni.report_intermediate_result(mae)
     print(' \n* MAE {mae:.3f}\n'.format(mae=mae), '* MSE {mse:.3f}'.format(mse=mse))
@@ -352,14 +354,15 @@ def memory(percentage):
 if __name__ == '__main__':
     memory(0.95)
    
-    print("----------------------------")
-    print("** Google Drive Sign In **")
-    auth.authenticate_user()
-    gauth = GoogleAuth()
-    gauth.credentials = GoogleCredentials.get_application_default()
-    drive = GoogleDrive(gauth)
-    print("** Successfully logged in! **")
-    print("----------------------------")
+    if platform.system() == "Linux":
+        print("----------------------------")
+        print("** Google Drive Sign In **")
+        auth.authenticate_user()
+        gauth = GoogleAuth()
+        gauth.credentials = GoogleCredentials.get_application_default()
+        drive = GoogleDrive(gauth)
+        print("** Successfully logged in! **")
+        print("----------------------------")
     
     tuner_params = nni.get_next_parameter()
     logger.debug(tuner_params)
