@@ -9,6 +9,7 @@ if platform.system() == "Linux":
 import sys
 import warnings
 from datetime import datetime
+from tqdm import trange
 
 import matplotlib.pyplot as plt
 import nni
@@ -79,10 +80,7 @@ def main(args):
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args['gpu_id']
 
-    if args['model_type'] == 'token':
-        model = base_patch16_384_token(pretrained=True)
-    else:
-        model = base_patch16_384_gap(pretrained=True)
+    model = base_patch16_384_token(pretrained=True)
 
     model = nn.DataParallel(model, device_ids=[0])
     model = model.cuda()
@@ -90,9 +88,14 @@ def main(args):
     criterion = nn.L1Loss(size_average=False).cuda()
 
     optimizer = torch.optim.Adam(
-        [  #
-            {'params': model.parameters(), 'lr': args['lr']},
-        ], lr=args['lr'], weight_decay=args['weight_decay'])
+        [
+            {'params': model.parameters(),
+             'lr': args['lr']
+            },
+        ],
+        lr=args['lr'],
+        weight_decay=args['weight_decay']
+    )
 
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[300], gamma=0.1, last_epoch=-1)
     print(args['pre'])
@@ -144,7 +147,7 @@ def pre_data(train_list, args, train):
     print("Pre_load dataset ......")
     data_keys = {}
     count = 0
-    for j in range(len(train_list)):
+    for j in trange(len(train_list)):
         Img_path = train_list[j]
         fname = os.path.basename(Img_path)
         img, gt_count = load_data(Img_path, args, train)
@@ -157,8 +160,8 @@ def pre_data(train_list, args, train):
         count += 1
 
         '''for debug'''
-        if j > 300:
-            break
+        #if j > 5:
+        #    break
 
     return data_keys
 
@@ -268,6 +271,12 @@ def validate(Pre_data, model, args, epoch):
     mae = mae * 1.0 / (len(test_loader) * batch_size)
     mse = math.sqrt(mse / (len(test_loader)) * batch_size)
 
+    f = open("res.txt", "a")
+    f.write("Epoch n." + str(epoch) + ": " +str(mae)+"\n")
+    f.write("Epoch n." + str(epoch) + ": " +str(mse)+"\n")
+    f.write('------\n')
+    f.close()
+    
     listMae.append(mae)
     listMse.append(mse)
 

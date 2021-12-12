@@ -9,6 +9,10 @@ from timm.models.vision_transformer import VisionTransformer, _cfg
 from timm.models.registry import register_model
 from timm.models.layers import trunc_normal_
 import urllib.request
+import tqdm
+import urllib, os
+from tqdm import tqdm
+urllib = getattr(urllib, 'request', urllib)
 
 class VisionTransformer_token(VisionTransformer):
     def __init__(self, *args, **kwargs):
@@ -94,45 +98,56 @@ class VisionTransformer_gap(VisionTransformer):
         x = self.output1(x)
         return x
 
+class DownloadProgressBar(tqdm):
+    def update_to(self, b=1, bsize=1, tsize=None):
+        if tsize is not None:
+            self.total = tsize
+        return self.update(b * bsize - self.n)
+
+
 def downloadPTHFile():
     print("Downloading deit_base_patch16_384-8de9b5d1.pth ...")
     url = "https://dl.fbaipublicfiles.com/deit/deit_base_patch16_384-8de9b5d1.pth"
-    urllib.request.urlretrieve(url, "./Networks/deit_base_patch16_384-8de9b5d1.pth")
+    with DownloadProgressBar(unit='B', unit_scale=True, unit_divisor=1024, miniters=1,
+                desc=url.split('/')[-1]) as t:
+        urllib.urlretrieve(url, filename='./Networks/deit_base_patch16_384-8de9b5d1.pth',
+                        reporthook=t.update_to, data=None)
+        t.total = t.n
 
 @register_model
-def base_patch16_384_token(pretrained=False, **kwargs):
+def base_patch16_384_token(pretrained, **kwargs):
     model = VisionTransformer_token(
         img_size=384, patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     model.default_cfg = _cfg()
     if pretrained:
-      if not os.path.isfile('./Networks/deit_base_patch16_384-8de9b5d1.pth'):
-        downloadPTHFile()
-        print("Downloading done.")
-      else:
+        if not os.path.isfile('./Networks/deit_base_patch16_384-8de9b5d1.pth'):
+            downloadPTHFile()
+            print("Downloading done.")
+
         '''download from https://dl.fbaipublicfiles.com/deit/deit_base_patch16_384-8de9b5d1.pth'''
         checkpoint = torch.load(
             './Networks/deit_base_patch16_384-8de9b5d1.pth')
         model.load_state_dict(checkpoint["model"], strict=False)
-        print("load transformer pretrained")
+        print("Transformer Token pretrained succesfully loaded")
     return model
 
 
 @register_model
-def base_patch16_384_gap(pretrained=False, **kwargs):
+def base_patch16_384_gap(pretrained, **kwargs):
     model = VisionTransformer_gap(
         img_size=384, patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True,
         norm_layer=partial(nn.LayerNorm, eps=1e-6), **kwargs)
     model.default_cfg = _cfg()
     if pretrained:
-      if not os.path.isfile('./Networks/deit_base_patch16_384-8de9b5d1.pth'):
-        downloadPTHFile()
-        print("Downloading done.")
-      else:
+        if not os.path.isfile('./Networks/deit_base_patch16_384-8de9b5d1.pth'):
+            downloadPTHFile()
+            print("Downloading done.")
+
         '''download from https://dl.fbaipublicfiles.com/deit/deit_base_patch16_384-8de9b5d1.pth'''
         checkpoint = torch.load(
             './Networks/deit_base_patch16_384-8de9b5d1.pth')
         model.load_state_dict(checkpoint["model"], strict=False)
-        print("load transformer pretrained")
+        print("Transformer GAP pretrained succesfully loaded")
     return model
 
