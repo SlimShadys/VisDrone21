@@ -80,7 +80,10 @@ def main(args):
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args['gpu_id']
 
-    model = base_patch16_384_token(pretrained=True)
+    if args['model_type'] == "token":
+        model = base_patch16_384_token(pretrained=True)
+    else:
+        model = base_patch16_384_gap(pretrained=True)
 
     model = nn.DataParallel(model, device_ids=[0])
     model = model.cuda()
