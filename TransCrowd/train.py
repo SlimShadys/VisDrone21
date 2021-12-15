@@ -19,10 +19,8 @@ import torch.nn as nn
 from torchvision import transforms
 from nni.utils import merge_parameter
 if platform.system() == "Linux":
-    from google.colab import auth
-    from oauth2client.client import GoogleCredentials
-    from pydrive.auth import GoogleAuth
-    from pydrive.drive import GoogleDrive
+    from google.colab import drive
+    import shutil
 
 import dataset
 from config import args, return_args
@@ -144,7 +142,17 @@ def main(args):
                 'state_dict': model.state_dict(),
                 'best_prec1': args['best_pred'],
                 'optimizer': optimizer.state_dict(),
-            }, is_best, args['save_path'])
+            }, is_best, args['save_path'], F'checkpoint_{epoch}.pth')
+
+            if platform.system() == "Linux":
+                try:
+                    shutil.copy(F"/content/VisDrone21/TransCrowd" + args['save_path'].replace('.','') + F"/checkpoint_{epoch}.pth", F"/content/gdrive/checkpoint_{epoch}.pth")
+                    if (is_best):
+                        shutil.copy(F"/content/VisDrone21/TransCrowd" + args['save_path'].replace('.','') + F"/model_best_{epoch}.pth", F"/content/gdrive/model_best_{epoch}.pth")
+                except:
+                    print("Could not save file to Drive.")
+                    pass
+
 
 def pre_data(train_list, args, train):
     print("Pre_load dataset ......")
@@ -295,18 +303,19 @@ def validate(Pre_data, model, args, epoch):
     plt.xlabel('Epochs')
     plt.xticks(default_x_ticks, epochList)
     plt.legend(loc='upper right', prop={'size': 15})
-    pltTitle = 'MAE-MSE_'+ datetime.now().strftime("%d_%m_%Y_%H_%M") +'.png'
+    nowDate = datetime.now().strftime("%d_%m_%Y_%H_%M")
+    pltTitle = 'MAE-MSE_'+ nowDate +'.png'
     plt.savefig(pltTitle)
 
     if platform.system() == "Linux":
         try:
-          fileToUpload = drive.CreateFile({'title': pltTitle})
-          fileToUpload.SetContentFile(pltTitle)
-          fileToUpload.Upload()
-          print('Uploaded file with ID {}'.format(fileToUpload.get('id')))
+            shutil.copy(F"/content/VisDrone21/TransCrowd/{pltTitle}", F"/content/gdrive/{pltTitle}")
+            print(F'Uploaded image file in: /content/gdrive/{pltTitle}')
+            shutil.copy("/content/VisDrone21/TransCrowd/res.txt", F"/content/gdrive/res_{nowDate}.txt")
+            print(F'Uploaded result file in: /content/gdrive/res_{nowDate}.txt')
         except:
-          print("Could not save file to Drive. Maybe access token has expired?")
-          pass
+            print("Could not save file to Drive.")
+            pass
     
     nni.report_intermediate_result(mae)
     print(' \n* MAE {mae:.3f}\n'.format(mae=mae), '* MSE {mse:.3f}'.format(mse=mse))
@@ -369,10 +378,7 @@ if __name__ == '__main__':
     if platform.system() == "Linux":
         print("----------------------------")
         print("** Google Drive Sign In **")
-        auth.authenticate_user()
-        gauth = GoogleAuth()
-        gauth.credentials = GoogleCredentials.get_application_default()
-        drive = GoogleDrive(gauth)
+        drive.mount('/content/gdrive')
         print("** Successfully logged in! **")
         print("----------------------------")
     
