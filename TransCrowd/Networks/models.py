@@ -130,6 +130,8 @@ def base_patch16_384_token(pretrained, **kwargs):
             './Networks/deit_base_patch16_384-8de9b5d1.pth')
         model.load_state_dict(checkpoint["model"], strict=False)
         print("Transformer Token pretrained succesfully loaded")
+    else:
+        print("Transformer Token NOT pretrained succesfully loaded")
     return model
 
 
@@ -149,5 +151,7 @@ def base_patch16_384_gap(pretrained, **kwargs):
             './Networks/deit_base_patch16_384-8de9b5d1.pth')
         model.load_state_dict(checkpoint["model"], strict=False)
         print("Transformer GAP pretrained succesfully loaded")
+    else:
+        print("Transformer GAP NOT pretrained succesfully loaded")
     return model
 

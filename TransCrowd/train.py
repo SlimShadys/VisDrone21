@@ -35,6 +35,7 @@ import time
 listMae = []
 listMse = []
 epochList = []
+global groupName
 
 setup_seed(args.seed)
 
@@ -67,6 +68,12 @@ def main(args):
 
     print("\nLenght Train list: " + str(len(train_list)))
     print("Lenght Test list: " + str(len(val_list)))
+
+    groupName = args['group_name']
+    if(groupName == ''):
+        print("nYou didn't select any group name! Assuming empty")
+    else:
+        print(F"\nGroup name: {groupName}")
 
     try:
         print('*-----------------------------------------*')
@@ -146,9 +153,11 @@ def main(args):
 
             if platform.system() == "Linux":
                 try:
-                    shutil.copy(F"/content/VisDrone21/TransCrowd" + args['save_path'].replace('.','') + F"/checkpoint_{epoch}.pth", F"/content/gdrive/checkpoint_{epoch}.pth")
+                    shutil.copy(args['save_path'] + F"/checkpoint_{epoch}.pth", F"../../gdrive/MyDrive/Groups{groupName}/checkpoint_{epoch}.pth")
+                    print(F'Uploaded checkpoint_{epoch}.pth in: /content/gdrive/MyDrive/Groups{groupName}/checkpoint_{epoch}.pth')
                     if (is_best):
-                        shutil.copy(F"/content/VisDrone21/TransCrowd" + args['save_path'].replace('.','') + F"/model_best_{epoch}.pth", F"/content/gdrive/model_best_{epoch}.pth")
+                        shutil.copy(args['save_path'] + F"/model_best_{epoch}.pth", F"../../gdrive/MyDrive/Groups{groupName}/model_best_{epoch}.pth")
+                        print(F'Uploaded model_best_{epoch}.pth in: /content/gdrive/MyDrive/Groups{groupName}/model_best_{epoch}.pth')
                 except:
                     print("Could not save file to Drive.")
                     pass
@@ -238,6 +247,9 @@ def train(Pre_data, model, criterion, optimizer, epoch, args, scheduler):
     scheduler.step()
 
 def validate(Pre_data, model, args, epoch):
+
+    groupName = args['group_name']
+
     print('begin test')
     batch_size = 1
     test_loader = torch.utils.data.DataLoader(
@@ -309,10 +321,12 @@ def validate(Pre_data, model, args, epoch):
 
     if platform.system() == "Linux":
         try:
-            shutil.copy(F"/content/VisDrone21/TransCrowd/{pltTitle}", F"/content/gdrive/{pltTitle}")
-            print(F'Uploaded image file in: /content/gdrive/{pltTitle}')
-            shutil.copy("/content/VisDrone21/TransCrowd/res.txt", F"/content/gdrive/res_{nowDate}.txt")
-            print(F'Uploaded result file in: /content/gdrive/res_{nowDate}.txt')
+            if not os.path.exists(F"../../gdrive/MyDrive/Groups{groupName}/"):
+                os.makedirs(F"../../gdrive/MyDrive/Groups{groupName}/")
+            shutil.copy(F"{pltTitle}", F"../../gdrive/MyDrive/Groups{groupName}/{pltTitle}")
+            print(F'Uploaded image file in: /content/gdrive/MyDrive/Groups{groupName}/{pltTitle}')
+            shutil.copy("res.txt", F"../../gdrive/MyDrive/Groups{groupName}/res_{nowDate}.txt")
+            print(F'Uploaded result file in: /content/gdrive/MyDrive/Groups{groupName}/res_{nowDate}.txt')
         except:
             print("Could not save file to Drive.")
             pass

@@ -15,15 +15,14 @@ parser.add_argument('--print_freq', type=int, default=200,
                     help='print frequency')
 parser.add_argument('--start_epoch', type=int, default=0,
                     help='start epoch for training')
+parser.add_argument('--group_name', type=str, default='',
+                    help='Group name for configuration - Ex. "/A"')
 
 # Model specifications
 parser.add_argument('--test_dataset', type=str, default='UCF_QNRF',
                     help='choice train dataset')
 parser.add_argument('--pre', type=str, default=None,
                     help='pre-trained model directory')
-# parser.add_argument('--pre', type=str, default='./save_file/A_baseline_4/model_best_66.1.pth',
-#                     help='pre-trained model directory')
-
 
 # Optimization specifications
 parser.add_argument('--batch_size', type=int, default=8,
