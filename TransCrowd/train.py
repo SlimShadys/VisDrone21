@@ -64,26 +64,28 @@ def main(args):
     with open(train_file, 'rb') as outfile:
         train_list = np.load(outfile).tolist()
     with open(test_file, 'rb') as outfile:
-        val_list = np.load(outfile).tolist()
+        test_list = np.load(outfile).tolist()
 
-    print("\nLenght Train list: " + str(len(train_list)))
-    print("Lenght Test list: " + str(len(val_list)))
+    print("-------------------------------------------------------")
+    print("Lenght Train list: " + str(len(train_list)))
+    print("Lenght Test list: " + str(len(test_list)))
+    print("-------------------------------------------------------")
 
     groupName = args['group_name']
     if(groupName == ''):
-        print("nYou didn't select any group name! Assuming empty")
+        print("You didn't select any group name! Assuming empty")
     else:
-        print(F"\nGroup name: {groupName}")
+        print(F"Group name: {groupName}")
+    print("-------------------------------------------------------")
 
     try:
-        print('*-----------------------------------------*')
         print('Cuda available: {}'.format(torch.cuda.is_available()))
         print("GPU: " + torch.cuda.get_device_name(torch.cuda.current_device()))
-        print('*-----------------------------------------*')
     except:
         pass
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args['gpu_id']
+    print("-------------------------------------------------------")
 
     if args['model_type'] == "token":
         model = base_patch16_384_token(pretrained=True)
@@ -106,28 +108,39 @@ def main(args):
     )
 
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[300], gamma=0.1, last_epoch=-1)
-    print(args['pre'])
 
-    # args['save_path'] = args['save_path'] + str(args['rdt'])
-    print(args['save_path'])
+    print("-------------------------------------------------------")
+    print(F"The directory for saving checkpoints/models is: {args['save_path']}")
     if not os.path.exists(args['save_path']):
         os.makedirs(args['save_path'])
+    print("-------------------------------------------------------")
 
     if args['pre']:
+        print("You specified a pre-loading directory for checkpoints.")
+        print(F"The directory is: {args['pre']}")
         if os.path.isfile(args['pre']):
-            print("=> loading checkpoint '{}'".format(args['pre']))
+            print("=> Loading checkpoint '{}'".format(args['pre']))
             checkpoint = torch.load(args['pre'])
             model.load_state_dict(checkpoint['state_dict'], strict=False)
             args['start_epoch'] = checkpoint['epoch']
             args['best_pred'] = checkpoint['best_prec1']
+            print("Checkpoint loaded successfully")
         else:
-            print("=> no checkpoint found at '{}'".format(args['pre']))
+            print("=> No checkpoint found at '{}'".format(args['pre']))
+            print("Are you sure the directory / checkpoint exist?")
+        print("-------------------------------------------------------")
 
+    print(F"Setting {args['workers']} threads for Torch...")
     torch.set_num_threads(args['workers'])
+    print("Successfully set threads.")
+    print("-------------------------------------------------------")
+    print(F"Best prediction loaded: {args['best_pred']}")
+    print(F"Starting from epoch n. {args['start_epoch']}")
+    print("-------------------------------------------------------")
 
-    print(args['best_pred'], args['start_epoch'])
     train_data = pre_data(train_list, args, train=True)
-    test_data = pre_data(val_list, args, train=False)
+    test_data = pre_data(test_list, args, train=False)
+    print("-------------------------------------------------------")
 
     for epoch in range(args['start_epoch'], args['epochs']):
 
@@ -141,7 +154,7 @@ def main(args):
             is_best = prec1 < args['best_pred']
             args['best_pred'] = min(prec1, args['best_pred'])
 
-            print(' * best MAE {mae:.3f} '.format(mae=args['best_pred']), args['save_path'], end1 - start, end2 - end1)
+            print(' * Best MAE {mae:.3f} '.format(mae=args['best_pred']), args['save_path'], end1 - start, end2 - end1)
 
             save_checkpoint({
                 'epoch': epoch + 1,
@@ -164,7 +177,10 @@ def main(args):
 
 
 def pre_data(train_list, args, train):
-    print("Pre_load dataset ......")
+    if(train):
+        print("Pre loading training dataset ......")
+    else:
+        print("Pre loading testing dataset ......")
     data_keys = {}
     count = 0
     for j in trange(len(train_list)):
@@ -209,7 +225,9 @@ def train(Pre_data, model, criterion, optimizer, epoch, args, scheduler):
                             args=args),
         batch_size=args['batch_size'], drop_last=False)
     args['lr'] = optimizer.param_groups[0]['lr']
-    print('epoch %d, processed %d samples, lr %.10f' % (epoch, epoch * len(train_loader.dataset), args['lr']))
+    print(F'Starting Epoch n.{epoch}')
+    print(F"\t- {epoch * len(train_loader.dataset)} samples processed until now at a learning rate of {args['lr']}")
+    print("-------------------------------------------------------")
 
     model.train()
     end = time.time()
@@ -250,7 +268,8 @@ def validate(Pre_data, model, args, epoch):
 
     groupName = args['group_name']
 
-    print('begin test')
+    print("-------------------------------------------------------")
+    print('Beginning validation test on test dataset...')
     batch_size = 1
     test_loader = torch.utils.data.DataLoader(
                         dataset.listDataset(Pre_data,
@@ -315,8 +334,8 @@ def validate(Pre_data, model, args, epoch):
     plt.xlabel('Epochs')
     plt.xticks(default_x_ticks, epochList)
     plt.legend(loc='upper right', prop={'size': 15})
-    nowDate = datetime.now().strftime("%d_%m_%Y_%H_%M")
-    pltTitle = 'MAE-MSE_'+ nowDate +'.png'
+    nowDate = datetime.now().strftime("%H_%M")
+    pltTitle = 'MAE-MSE_'+ nowDate + '_' + 'Epoch_' + str(epoch) +'.png'
     plt.savefig(pltTitle)
 
     if platform.system() == "Linux":
@@ -325,8 +344,8 @@ def validate(Pre_data, model, args, epoch):
                 os.makedirs(F"../../gdrive/MyDrive/Groups{groupName}/")
             shutil.copy(F"{pltTitle}", F"../../gdrive/MyDrive/Groups{groupName}/{pltTitle}")
             print(F'Uploaded image file in: /content/gdrive/MyDrive/Groups{groupName}/{pltTitle}')
-            shutil.copy("res.txt", F"../../gdrive/MyDrive/Groups{groupName}/res_{nowDate}.txt")
-            print(F'Uploaded result file in: /content/gdrive/MyDrive/Groups{groupName}/res_{nowDate}.txt')
+            shutil.copy("res.txt", F"../../gdrive/MyDrive/Groups{groupName}/res_{groupName.split('/')[1]}.txt")
+            print(F'Uploaded result file in: /content/gdrive/MyDrive/Groups{groupName}/res_{groupName.split("/")[1]}.txt')
         except:
             print("Could not save file to Drive.")
             pass
@@ -389,6 +408,18 @@ def memory(percentage):
 if __name__ == '__main__':
     memory(0.95)
    
+    print("|***************************************************|")
+    print("|                T R A N S C R O W D                |")
+    print("|                 Made by: Dk-Liang                 |")
+    print("|---------------------------------------------------|")
+    print("|              Revamped by: SlimShadys              |")
+    print("|         ---  Student at University of  ---        |")
+    print("|     --- Computer Science and Technologies ---     |")
+    print("|     ---                for                ---     |")
+    print("|     ---        Software Production        ---     |")
+    print("|         ---        Bary, Italy        ---         |")
+    print("|***************************************************|")
+
     if platform.system() == "Linux":
         print("----------------------------")
         print("** Google Drive Sign In **")
