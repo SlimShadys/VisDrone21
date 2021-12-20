@@ -5,10 +5,10 @@ parser = argparse.ArgumentParser(description='TransCrowd')
 # Data specifications
 parser.add_argument('--dataset', type=str, default='ShanghaiA',
                     help='choice train dataset')
-
 parser.add_argument('--save_path', type=str, default='./save_file/A_baseline',
                     help='save checkpoint directory')
-
+parser.add_argument('--save_path', type=str, default='./save_file/A_baseline',
+                    help='save checkpoint directory')
 parser.add_argument('--workers', type=int, default=16,
                     help='load data workers')
 parser.add_argument('--print_freq', type=int, default=200,
@@ -17,7 +17,8 @@ parser.add_argument('--start_epoch', type=int, default=0,
                     help='start epoch for training')
 parser.add_argument('--group_name', type=str, default='',
                     help='Group name for configuration - Ex. "/A"')
-
+parser.add_argument('--uses_drive', type=bool, default=False,
+                    help='Whether using Drive for saving models / results')
 # Model specifications
 parser.add_argument('--test_dataset', type=str, default='UCF_QNRF',
                     help='choice train dataset')

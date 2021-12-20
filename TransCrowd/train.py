@@ -164,7 +164,7 @@ def main(args):
                 'optimizer': optimizer.state_dict(),
             }, is_best, args['save_path'], F'checkpoint_{epoch}.pth')
 
-            if platform.system() == "Linux":
+            if platform.system() == "Linux" and args['uses_drive']:
                 try:
                     shutil.copy(args['save_path'] + F"/checkpoint_{epoch}.pth", F"../../gdrive/MyDrive/Groups{groupName}/checkpoint_{epoch}.pth")
                     print(F'Uploaded checkpoint_{epoch}.pth in: /content/gdrive/MyDrive/Groups{groupName}/checkpoint_{epoch}.pth')
@@ -338,7 +338,7 @@ def validate(Pre_data, model, args, epoch):
     pltTitle = 'MAE-MSE_'+ nowDate + '_' + 'Epoch_' + str(epoch) +'.png'
     plt.savefig(pltTitle)
 
-    if platform.system() == "Linux":
+    if platform.system() == "Linux" and args['uses_drive']:
         try:
             if not os.path.exists(F"../../gdrive/MyDrive/Groups{groupName}/"):
                 os.makedirs(F"../../gdrive/MyDrive/Groups{groupName}/")
@@ -420,7 +420,7 @@ if __name__ == '__main__':
     print("|         ---        Bary, Italy        ---         |")
     print("|***************************************************|")
 
-    if platform.system() == "Linux":
+    if platform.system() == "Linux" and args['uses_drive']:
         print("----------------------------")
         print("** Google Drive Sign In **")
         drive.mount('/content/gdrive')
