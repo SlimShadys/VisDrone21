@@ -174,7 +174,9 @@ def main(args):
                 except:
                     print("Could not save file to Drive.")
                     pass
-
+    print("\n-------------------------------------------------------")
+    print("Done training the model.")
+    print('Best MAE was: {mae:.3f} '.format(mae=args['best_pred']))
 
 def pre_data(train_list, args, train):
     if(train):

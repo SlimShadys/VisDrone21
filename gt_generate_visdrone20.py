@@ -169,15 +169,15 @@ for i in trange(len(gt_paths)):
                                                                       #      di tutti i gt di tutte le sub-immagini
                     # Salvataggio immagini ridimensionate in 
                     # 384x384 a cui viene applicato il GaussianFilter
-                    # in VisDrone2020-CC/train_data/images/00001/00001_0_0.jpg etc.
+                    # in VisDrone2020-CC/train_data/images_crop/00001_00001_0_0.jpg etc.
                     # -- Solo per visualizzazione --
-                    save_img = trainDataDirectory + save_filename.split("_")[0] + '_' + save_filename.split("_")[1].split(".")[0] + '_' + str(i) + '_' + str(j) + '.jpg' 
+                    save_img = trainDataDirectory.replace('images','images_crop') + save_filename.split("_")[0] + '_' + save_filename.split("_")[1].split(".")[0] + '_' + str(i) + '_' + str(j) + '.jpg' 
                     cv2.imwrite(save_img, crop_img)
 
                     # Salvataggio immagini ridimensionate in 384x384 all'interno di
-                    # VisDrone2020-CC/train_data/gt_density_map/00001/00001_0_0.h5 etc.
+                    # VisDrone2020-CC/train_data/gt_density_map/00001_00001_0_0.h5 etc.
                     # Qui viene salvato il gt_count
-                    h5_path = save_img.replace('images', 'gt_density_map').replace('.jpg', '.h5')
+                    h5_path = save_img.replace('images_crop', 'gt_density_map').replace('.jpg', '.h5')
                     with h5py.File(h5_path, 'w') as hf:
                         hf['gt_count'] = gt_count
                                  

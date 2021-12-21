@@ -7,8 +7,6 @@ parser.add_argument('--dataset', type=str, default='ShanghaiA',
                     help='choice train dataset')
 parser.add_argument('--save_path', type=str, default='./save_file/A_baseline',
                     help='save checkpoint directory')
-parser.add_argument('--save_path', type=str, default='./save_file/A_baseline',
-                    help='save checkpoint directory')
 parser.add_argument('--workers', type=int, default=16,
                     help='load data workers')
 parser.add_argument('--print_freq', type=int, default=200,

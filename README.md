@@ -1,26 +1,22 @@
 # VisDrone21
-Crowd counting through drones using VisDrone Dataset / Neural Networks<br />
+## Crowd counting through drones using VisDrone Dataset / Neural Networks via TransCrowd transformer
 
 The VisDrone Dataset could be found [here](https://github.com/VisDrone/VisDrone-Dataset).
 
-# Prepare the dataset
-```
-python gt_generate_visdrone20.py
-```
+- Task 5: Crowd Counting
 
-# Generate image list
-```
-cd TransCrowd
-python make_npydata.py
-```
+The TransCrowd implementation can be found under the directory "*/TransCrowd*".
 
-# Training
-```
-python train.py --dataset VisDrone --save_path ./save_file/VisDrone --batch_size X --model_type "token" / "gap" --epoch X --print_freq 5
-```
+For official implementation, have a look [here](https://github.com/dk-liang/TransCrowd).
 
-- Gianmarco Scarano
-- Pasquale De Marinis (Test annotations converter)
+# Run the notebook
+You can run the whole process via the *Google Colab Notebook* that can be found [here](https://colab.research.google.com/drive/1GICGGQyNmUErkBJ2iHDBGvVVg6AiJ37_).
+
+It is highly suggested to run the notebook on a *Pro* account, since it requires at least **16GB** of RAM (Colab Free gives **12GB**).
+
+# Credits
+- Gianmarco Scarano (*Owner*)
+- Pasquale De Marinis (*Test annotations converter*)
 - Credits for TransCrowd implementation:
 ```
 @article{liang2021transcrowd,
@@ -30,8 +26,11 @@ python train.py --dataset VisDrone --save_path ./save_file/VisDrone --batch_size
   year={2021}
 }
 ```
-
-// *More credits to be written soon*
 __________________________________________________________________
 
-![MicrosoftTeams-image](https://user-images.githubusercontent.com/6324754/141682229-290c7fbc-14d3-4f0e-ab76-5eed982b76b0.png)
+### Normal images vs Density maps
+<p align="center">
+  <img alt="Normal images" src="https://github.com/SlimShadys/VisDrone21/blob/GPU/GIFs/Normal.gif" width="45%"> 
+&nbsp; &nbsp; &nbsp; &nbsp;
+  <img alt="Density maps" src="https://github.com/SlimShadys/VisDrone21/blob/GPU/GIFs/Density.gif" width="45%">
+</p>
