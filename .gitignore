@@ -8,3 +8,10 @@ VisDrone2020-CC/train_data/
 TransCrowd/__pycache__/*
 TransCrowd/Networks/__pycache__/*
 *.pth
+
+# MobileCount
+MobileCount/__pycache__
+MobileCount/**/__pycache__
+MobileCount/__pycache__/*
+MobileCount/**/__pycache__/*
+*.pth
