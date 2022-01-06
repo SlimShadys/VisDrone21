@@ -1,14 +1,8 @@
 """RefineNet-LightWeight. No RCU, only LightWeight-CRP block."""
 
-import math
-
 import torch.nn as nn
 import torch.nn.functional as F
-import torch.utils.model_zoo as model_zoo
-import torch
-from torch.autograd import Variable
 import torchvision.models as models
-
 
 model_urls = {
     'resnet101': 'https://download.pytorch.org/models/resnet101-5d3b4d8f.pth',
@@ -33,7 +27,7 @@ class CRPBlock(nn.Module):
 
     def __init__(self, in_planes, out_planes, n_stages):
         super(CRPBlock, self).__init__()
-        for i in xrange(n_stages):
+        for i in range(n_stages):
             setattr(self, '{}_{}'.format(i + 1, 'outvar_dimred'),
                     conv1x1(in_planes if (i == 0) else out_planes,
                             out_planes, stride=1,
@@ -44,7 +38,7 @@ class CRPBlock(nn.Module):
 
     def forward(self, x):
         top = x
-        for i in xrange(self.n_stages):
+        for i in range(self.n_stages):
             top = self.maxpool(top)
             top = getattr(self, '{}_{}'.format(i + 1, 'outvar_dimred'))(top)
             x = top + x
