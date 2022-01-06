@@ -1,3 +1,4 @@
+from matplotlib.pyplot import hexbin
 import numpy as np
 from PIL import Image
 import torch

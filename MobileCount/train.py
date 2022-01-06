@@ -1,11 +1,13 @@
+import torch
 from torch import optim
 from torch.optim.lr_scheduler import StepLR
+import torch.nn as nn
+import numpy as np
 
 from config import cfg
-from misc.utils import *
+from misc.utils import logger, AverageMeter, update_model, print_summary, Timer
 import time
 import tqdm
-
 
 class Trainer:
     def __init__(self, dataloader, cfg_data, net_fun):
@@ -18,7 +20,6 @@ class Trainer:
         self.net_name = cfg.NET
         self.net = net_fun()
         self.optimizer = optim.Adam(self.net.parameters(), lr=cfg.LR, weight_decay=1e-4)
-        # self.optimizer = optim.SGD(self.net.parameters(), cfg.LR, momentum=0.95,weight_decay=5e-4)
         self.scheduler = StepLR(
             self.optimizer, step_size=cfg.NUM_EPOCH_LR_DECAY, gamma=cfg.LR_DECAY
         )
@@ -63,8 +64,8 @@ class Trainer:
         time = 0
         norm_gt_count = 0
         norm_pred_count = 0
-
-        tk_train = tqdm(
+        print("\n")
+        tk_train = tqdm.tqdm(
             enumerate(self.train_loader, 0),
             total=len(self.train_loader),
             leave=False,
@@ -87,12 +88,18 @@ class Trainer:
         for i, data in tk_train:
             self.timer["iter time"].tic()
             img, gt = data
-            img = img.to(cfg.DEVICE)
-            gt = gt.to(cfg.DEVICE)
+            img = img.permute(0, 3, 1, 2).to(torch.float32).cuda()
+            gt = gt.type(torch.FloatTensor).cuda().unsqueeze(1).cuda()
 
             self.optimizer.zero_grad()
             pred_den = self.net.predict(img)
+            
+            # RICONTROLLARE LOSS #
+            crit = nn.MSELoss().cuda()
+            loss = crit(pred_den, gt)
             loss = self.net.build_loss(pred_den, gt)
+            # ------------- #
+            
             loss.backward()
             self.optimizer.step()
 
@@ -125,7 +132,7 @@ class Trainer:
         mses = AverageMeter()
         time_sampe = 0
         step = 0
-        tk_valid = tqdm(
+        tk_valid = tqdm.tqdm(
             enumerate(self.val_loader, 0),
             total=len(self.val_loader),
             leave=False,

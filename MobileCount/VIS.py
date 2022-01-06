@@ -6,14 +6,14 @@ import torch
 import torchvision
 from PIL import Image as pil
 import h5py
-import config as cfg
+from config import cfg as config
 from easydict import EasyDict
 import sklearn.model_selection
 import misc.transforms as transforms
+import cv2
 
 cfg_data = EasyDict()
 
-cfg_data.SIZE = (1080, 1920)
 cfg_data.FILE_EXTENSION = ".jpg"
 cfg_data.GT_FILE_EXTENSION = ".h5"
 cfg_data.LOG_PARA = 2550.0
@@ -22,8 +22,9 @@ MEAN = [0.43476477, 0.44504763, 0.43252817]
 STD = [0.20490805, 0.19712372, 0.20312176]
 
 class VisDroneDataset(torch.utils.data.Dataset):
-    def __init__(self, dataframe, train=True, img_transform=True, gt_transform=True):
+    def __init__(self, dataframe, train=True, img_transform=None, gt_transform=None):
         self.dataframe = dataframe
+        self.train = train
         self.train_transforms = None
         self.img_transform = None
         self.gt_transform = None
@@ -52,23 +53,44 @@ class VisDroneDataset(torch.utils.data.Dataset):
         target_filename = self.dataframe.loc[i]["gt_filename"]
 
         # Load the img and the ground truth
-        with pil.open(filename) as img:
-            data = np.array(img)
+        with pil.open(filename).convert('RGB') as img:
+            data = np.array(img, dtype=np.uint8)
 
-        hf = h5py.File(target_filename, "r")
-        target = np.array(hf.get("gt_count"))
+        with h5py.File(target_filename, 'r') as hf:
+            target = np.array(hf.get("gt_count"), dtype=np.uint8)
         hf.close()
 
-        if self.train_transforms:
-            data, target = self.train_transforms(data, target)
+        if(self.train == True):
+            return data, target
 
-        if self.img_transform:
-            data = self.img_transform(data)
+        else:
+            if self.train_transforms:
+                data, target = self.train_transforms(data, target)
 
-        if self.gt_transform:
-            target = self.gt_transform(target)
+            if self.img_transform:
+                data = self.img_transform(data)
 
-        return data, target
+            if self.gt_transform:
+                target = self.gt_transform(target)
+
+            width, height = data.shape[2], data.shape[1]
+
+            m = int(width / 384)
+            n = int(height / 384)
+            for i in range(0, m):
+                for j in range(0, n):
+
+                    if i == 0 and j == 0:
+                        img_return = data[:, j * 384: 384 * (j + 1), i * 384:(i + 1) * 384].cuda().unsqueeze(0)
+                        target_return = target[:, j * 384: 384 * (j + 1), i * 384:(i + 1) * 384].cuda().unsqueeze(0)
+                    else:
+                        crop_img = data[:, j * 384: 384 * (j + 1), i * 384:(i + 1) * 384].cuda().unsqueeze(0)
+                        crop_target = target[:, j * 384: 384 * (j + 1), i * 384:(i + 1) * 384].cuda().unsqueeze(0)
+
+                        img_return = torch.cat([img_return, crop_img], 0).cuda()
+                        target_return = torch.cat([target_return, crop_target], 0).cuda()
+
+            return img_return, target_return
 
     def get_targets(self):
         return self.targets
@@ -82,9 +104,10 @@ def make_dataframe(folder):
         files = os.listdir(os.path.join(folder, cur_folder))
         for file in files:
             if cfg_data.FILE_EXTENSION in file:
-                idx, ext = file.split(".")
-                gt = os.path.join(folder, cur_folder, idx + re.sub(', |\(|\)|\[|\]', '_', str(cfg_data.SIZE)) + cfg_data.GT_FILE_EXTENSION)
-                dataset.append([idx, os.path.join(folder, cur_folder, file), gt])
+                idx = file.split(".")[0]
+                gt = os.path.join(folder, cur_folder.replace('images_crop', 'gt_density_map'), idx + re.sub(', |\(|\)|\[|\]', '_', '') + cfg_data.GT_FILE_EXTENSION)
+                dataset.append([idx, os.path.join(folder, cur_folder, file).replace('/','\\'), gt.replace('/','\\')])
+
     return pd.DataFrame(dataset, columns=["id", "filename", "gt_filename"])
 
 
@@ -95,26 +118,20 @@ def load_test():
 
 
 def load_train_val():
-    df = make_dataframe("../VisDrone2020-CC/train_data")
-
-    # Split the dataframe in train and validation
-    train_df, valid_df = sklearn.model_selection.train_test_split(
-        df, test_size=cfg.VAL_SIZE, shuffle=True
-    )
-    train_df = train_df.reset_index(drop=True)
-    valid_df = valid_df.reset_index(drop=True)
+    train_df = make_dataframe('../VisDrone2020-CC/train_data')
+    valid_df = make_dataframe('../VisDrone2020-CC/test_data')
 
     train_set = VisDroneDataset(train_df)
     train_loader = torch.utils.data.DataLoader(
         train_set,
-        batch_size=cfg.TRAIN_BATCH_SIZE,
-        num_workers=cfg.N_WORKERS,
+        batch_size=config.TRAIN_BATCH_SIZE,
+        num_workers=config.N_WORKERS,
         shuffle=True,
     )
 
     val_set = VisDroneDataset(valid_df)
     val_loader = torch.utils.data.DataLoader(
-        val_set, batch_size=cfg.VAL_BATCH_SIZE, num_workers=cfg.N_WORKERS, shuffle=True
+        val_set, batch_size=config.VAL_BATCH_SIZE, num_workers=config.N_WORKERS, shuffle=True
     )
 
     return train_loader, val_loader

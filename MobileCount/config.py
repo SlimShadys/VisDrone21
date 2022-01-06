@@ -9,10 +9,10 @@ now = time.strftime("%m-%d_%H-%M", time.localtime())
 #------------------------------TRAIN------------------------
 __C.SEED = 3035 # random seed,  for reporduction
 __C.DATASET = 'VIS' # dataset selection
-__C.NET = 'MobileCountx1_25' # net selection: MobileCount, MobileCountx1_25, MobileCountx2
+__C.NET = 'MobileCount' # net selection: MobileCount, MobileCountx1_25, MobileCountx2
 
-__C.TRAIN_BATCH_SIZE = 6
-__C.N_WORKERS = 1
+__C.TRAIN_BATCH_SIZE = 1
+__C.N_WORKERS = 2
 
 __C.PRE_TRAINED = None
 

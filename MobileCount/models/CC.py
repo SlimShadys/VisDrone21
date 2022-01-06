@@ -1,6 +1,14 @@
 import torch
 import torch.nn as nn
 
+MBVersions = {
+    'MobileCountx0_5': [16, 32, 64, 128],
+    'MobileCountx0_75': [32, 48, 80, 160],
+    'MobileCount': [32, 64, 128, 256],
+    'MobileCountx1_25': [64, 96, 160, 320],
+    'MobileCountx2': [64, 128, 256, 512],
+}
+
 class CrowdCounter(nn.Module):
     def __init__(self, gpus, model_name):
         super(CrowdCounter, self).__init__()
@@ -12,7 +20,7 @@ class CrowdCounter(nn.Module):
         elif model_name == 'MobileCountx2':
             from models.MobileCountx2 import MobileCount as net
 
-        self.CCN = net()
+        self.CCN = net(MBVersions[model_name])
 
         if len(gpus) > 1:
             self.CCN = torch.nn.DataParallel(self.CCN, device_ids=gpus).cuda()

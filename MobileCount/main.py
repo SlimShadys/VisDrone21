@@ -20,13 +20,13 @@ def beginTest():
 
 if __name__ == "__main__":
 
-    argumentsList = sys.argv[1:]
+    #argumentsList = sys.argv[1:]
     
-    if("--train" in argumentsList and "--test" in argumentsList):
-        print("You can only run training or testing separately. Not both!")
-        exit(0)
-    elif("--train" in argumentsList):
+    #if("--train" in argumentsList and "--test" in argumentsList):
+        #print("You can only run training or testing separately. Not both!")
+        #exit(0)
+    #elif("--train" in argumentsList):
         beginTrain()
-    elif("--test" in argumentsList):
-        exit(0)
+    #elif("--test" in argumentsList):
+    #    exit(0)
         #beginTest()

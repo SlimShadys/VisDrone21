@@ -14,4 +14,5 @@ MobileCount/__pycache__
 MobileCount/**/__pycache__
 MobileCount/__pycache__/*
 MobileCount/**/__pycache__/*
+MobileCount/exp
 *.pth
