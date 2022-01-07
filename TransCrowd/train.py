@@ -42,6 +42,16 @@ setup_seed(args.seed)
 logger = logging.getLogger('mnist_AutoML')
 
 def main(args):
+    
+    # Args for debugging through Spyder
+    args['dataset'] = 'VisDrone'                # Replace with you own dataset
+    args['save_path'] = './save_file/VisDrone'  # Directory where to save models
+    args['uses_drive'] = False                  # Whether to choose Drive to save models
+    args['model_type'] = 'gap'                  # Choose your model type (Token) / (Gap)
+    args['batch_size'] = 8                      # Batch size for training
+    args['epoch'] = 71                          # Numbers of epochs
+    args['print_freq'] = 5                      # Print data each X steps during training
+    
     if args['dataset'] == 'ShanghaiA':
         train_file = './npydata/ShanghaiA_train.npy'
         test_file = './npydata/ShanghaiA_test.npy'

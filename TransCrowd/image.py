@@ -1,16 +1,17 @@
-import scipy.spatial
 from PIL import Image
-import scipy.io as io
-import scipy
 import numpy as np
 import h5py
 import cv2
-import random
 
-def load_data(img_path, args, train=True):
+def load_data(img_path, args, train):
 
-    img_path = img_path.replace('.h5', '.jpg').replace('gt_density_map', 'images')
-    gt_path = img_path.replace('.jpg', '.h5').replace('images', 'gt_density_map')
+    if(train):
+        imageDir = 'images_crop'
+    else:
+        imageDir = 'images'
+
+    img_path = img_path.replace('.h5', '.jpg').replace('gt_density_map', imageDir)
+    gt_path = img_path.replace('.jpg', '.h5').replace(imageDir, 'gt_density_map')
     img = Image.open(img_path).convert('RGB')
 
     while True:
