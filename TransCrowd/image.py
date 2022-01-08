@@ -12,6 +12,7 @@ def load_data(img_path, args, train):
 
     img_path = img_path.replace('.h5', '.jpg').replace('gt_density_map', imageDir)
     gt_path = img_path.replace('.jpg', '.h5').replace(imageDir, 'gt_density_map')
+    
     img = Image.open(img_path).convert('RGB')
 
     while True:

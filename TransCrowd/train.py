@@ -52,6 +52,8 @@ def main(args):
     args['epoch'] = 71                          # Numbers of epochs
     args['print_freq'] = 5                      # Print data each X steps during training
     
+    print(args) # Print the arguments
+    
     if args['dataset'] == 'ShanghaiA':
         train_file = './npydata/ShanghaiA_train.npy'
         test_file = './npydata/ShanghaiA_test.npy'
@@ -442,6 +444,5 @@ if __name__ == '__main__':
     tuner_params = nni.get_next_parameter()
     logger.debug(tuner_params)
     params = vars(merge_parameter(return_args, tuner_params))
-    print(params)
 
     main(params)

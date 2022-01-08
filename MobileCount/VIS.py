@@ -1,16 +1,16 @@
+import os
+import platform
+import random
+import re
+
+import h5py
 import numpy as np
 import pandas as pd
-import os
-import re
 import torch
-import torchvision
-from PIL import Image as pil
-import h5py
-from config import cfg as config
 from easydict import EasyDict
-import sklearn.model_selection
-import misc.transforms as transforms
-import cv2
+from PIL import Image
+from torchvision import transforms as transformsTorch
+from tqdm import trange
 
 cfg_data = EasyDict()
 
@@ -22,125 +22,139 @@ MEAN = [0.43476477, 0.44504763, 0.43252817]
 STD = [0.20490805, 0.19712372, 0.20312176]
 
 class VisDroneDataset(torch.utils.data.Dataset):
-    def __init__(self, dataframe, train=True, img_transform=None, gt_transform=None):
-        self.dataframe = dataframe
-        self.train = train
-        self.train_transforms = None
-        self.img_transform = None
-        self.gt_transform = None
+    def __init__(self, root, shape=None, shuffle=True, transform=None, train=False, seen=0, batch_size=1,
+                 num_workers=4, args=None):
         if train:
-            self.train_transforms = transforms.RandomHorizontallyFlip()
+            random.shuffle(root)
 
-        if img_transform:
-            # Initialize data transforms
-            self.img_transform = torchvision.transforms.Compose(
-                [
-                    torchvision.transforms.ToTensor(),
-                    torchvision.transforms.Normalize(mean=MEAN, std=STD),
-                ]
-            )  # normalize to (-1, 1)
-        if gt_transform:
-            self.gt_transform = torchvision.transforms.Compose(
-                [transforms.Scale(cfg_data.LOG_PARA)]
-            )
+        self.nSamples = len(root)
+        self.lines = root
+        self.transform = transform
+        self.train = train
+        self.shape = shape
+        self.seen = seen
+        self.batch_size = batch_size
+        self.num_workers = num_workers
+        self.args = args
 
     def __len__(self):
-        return len(self.dataframe)
+        return self.nSamples
 
-    def __getitem__(self, i):
-        # Obtain the filename and target
-        filename = self.dataframe.loc[i]["filename"]
-        target_filename = self.dataframe.loc[i]["gt_filename"]
+    def __getitem__(self, index):
+        assert index <= len(self), 'index range error'
 
-        # Load the img and the ground truth
-        with pil.open(filename).convert('RGB') as img:
-            data = np.array(img, dtype=np.uint8)
+        img = self.lines[index]['img']
+        gt_count = self.lines[index]['gt_count']
 
-        with h5py.File(target_filename, 'r') as hf:
-            target = np.array(hf.get("gt_count"), dtype=np.uint8)
-        hf.close()
+        '''data augmention'''
+        if self.train == True:
+            if random.random() > 0.5:
+                img = img.transpose(Image.FLIP_LEFT_RIGHT)
+                
+        gt_count = gt_count.copy()
+        img = img.copy()
 
-        if(self.train == True):
-            return data, target
+        if self.train == True:
+            if self.transform is not None:
+                img = self.transform(img)
+
+            return img, gt_count
 
         else:
-            if self.train_transforms:
-                data, target = self.train_transforms(data, target)
+            if self.transform is not None:
+                img = self.transform(img)
+            return img, gt_count
 
-            if self.img_transform:
-                data = self.img_transform(data)
-
-            if self.gt_transform:
-                target = self.gt_transform(target)
-
-            width, height = data.shape[2], data.shape[1]
-
-            m = int(width / 384)
-            n = int(height / 384)
-            for i in range(0, m):
-                for j in range(0, n):
-
-                    if i == 0 and j == 0:
-                        img_return = data[:, j * 384: 384 * (j + 1), i * 384:(i + 1) * 384].cuda().unsqueeze(0)
-                        target_return = target[:, j * 384: 384 * (j + 1), i * 384:(i + 1) * 384].cuda().unsqueeze(0)
-                    else:
-                        crop_img = data[:, j * 384: 384 * (j + 1), i * 384:(i + 1) * 384].cuda().unsqueeze(0)
-                        crop_target = target[:, j * 384: 384 * (j + 1), i * 384:(i + 1) * 384].cuda().unsqueeze(0)
-
-                        img_return = torch.cat([img_return, crop_img], 0).cuda()
-                        target_return = torch.cat([target_return, crop_target], 0).cuda()
-
-            return img_return, target_return
-
-    def get_targets(self):
-        return self.targets
-
-
-def make_dataframe(folder):
-    # Return a DataFrame with columns (example folder, example idx, filename, gt filename)
+def make_dataframe(folder, train):
     folders = os.listdir(folder)
     dataset = []
     for cur_folder in folders:
+        if(cur_folder != 'MC'):
+            continue;
         files = os.listdir(os.path.join(folder, cur_folder))
         for file in files:
-            if cfg_data.FILE_EXTENSION in file:
+            if cfg_data.GT_FILE_EXTENSION in file:
                 idx = file.split(".")[0]
-                gt = os.path.join(folder, cur_folder.replace('images_crop', 'gt_density_map'), idx + re.sub(', |\(|\)|\[|\]', '_', '') + cfg_data.GT_FILE_EXTENSION)
-                dataset.append([idx, os.path.join(folder, cur_folder, file).replace('/','\\'), gt.replace('/','\\')])
+                if(train):
+                    path = folder.replace('train_data','sequences')
+                else:
+                    path = folder.replace('test_data','sequences')
+
+                dirName = file.split("_")[0]
+                imgName = file.split("_")[1].replace("h5","jpg")
+                gt = os.path.join(folder, cur_folder, idx + re.sub(', |\(|\)|\[|\]', '_', '') + cfg_data.GT_FILE_EXTENSION)
+                if platform.system() == "Linux":
+                    dataset.append([idx, os.path.join(path, dirName, imgName), gt])
+                else:
+                    dataset.append([idx, os.path.join(path, dirName, imgName).replace('/','\\'), gt.replace('/','\\')])
 
     return pd.DataFrame(dataset, columns=["id", "filename", "gt_filename"])
 
+def pre_data(dataFramePD, train):
+    if(train):
+        print("Pre loading training dataset ......")
+    else:
+        print("Pre loading testing dataset ......")
+    data_keys = {}
+    count = 0
+    labelGT = 'density'
+    
+    for j in trange(len(dataFramePD)):
+        Img_path = dataFramePD.loc[j]["filename"]
+        GT_path = dataFramePD.loc[j]["gt_filename"]
+        fname = os.path.basename(Img_path)
 
-def load_test():
-    df = make_dataframe("../VisDrone2020-CC/test_data")
-    ds = VisDroneDataset(df, train=False, gt_transform=False)
-    return ds
+        img = Image.open(Img_path)
+        img = img.copy()
+                    
+        gt_count = np.asarray(h5py.File(GT_path)[labelGT])
+        gt_count = gt_count.copy()
 
+        blob = {}
+        blob['img'] = img
+        blob['gt_count'] = gt_count
+        blob['fname'] = fname
+        data_keys[count] = blob
+        count += 1
+
+        '''for debug'''
+        if j > 100:
+            break
+
+    return data_keys
 
 def load_train_val():
-    train_df = make_dataframe('../VisDrone2020-CC/train_data')
-    valid_df = make_dataframe('../VisDrone2020-CC/test_data')
+    train_df = make_dataframe('../VisDrone2020-CC/train_data', True)
+    valid_df = make_dataframe('../VisDrone2020-CC/test_data', False)
 
-    train_set = VisDroneDataset(train_df)
+    train_data = pre_data(train_df, train=True)
+    test_data = pre_data(valid_df, train=False)
+    
     train_loader = torch.utils.data.DataLoader(
-        train_set,
-        batch_size=config.TRAIN_BATCH_SIZE,
-        num_workers=config.N_WORKERS,
-        shuffle=True,
-    )
+    VisDroneDataset(train_data,
+                        shuffle=True,
+                        transform=transformsTorch.Compose
+                        ([
+                                transformsTorch.ToTensor(),
+                                transformsTorch.Normalize(mean=MEAN,std=STD),
+                        ]),
+                        train=True,
+                        batch_size=4,
+                        num_workers=2),
+    batch_size=4, drop_last=False)
 
-    val_set = VisDroneDataset(valid_df)
-    val_loader = torch.utils.data.DataLoader(
-        val_set, batch_size=config.VAL_BATCH_SIZE, num_workers=config.N_WORKERS, shuffle=True
-    )
+    test_loader = torch.utils.data.DataLoader(
+    VisDroneDataset(test_data,
+                        shuffle=True,
+                        transform=transformsTorch.Compose([
+                            transformsTorch.ToTensor(),
 
-    return train_loader, val_loader
+                            transformsTorch.Normalize(mean=MEAN,
+                                                 std=STD),
+                        ]),
+                        train=True,
+                        batch_size=4,
+                        num_workers=2),
+    batch_size=4, drop_last=False)
 
-
-def load_test_dataset(data_folder, dataclass, make_dataframe_fun):
-    # Load the test dataframe
-    test_df = make_dataframe_fun(data_folder)
-
-    # Instantiate the dataset
-    test_data = dataclass(data_folder, test_df)
-    return test_data
+    return train_loader, test_loader

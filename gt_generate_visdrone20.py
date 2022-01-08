@@ -7,15 +7,13 @@ from TransCrowd.utils import dataframe_load_test
 from tqdm import trange
 
 path = 'VisDrone2020-CC/annotations'
-trainDataDirectory = 'VisDrone2020-CC/train_data/images/'
+trainDataDirectory = 'VisDrone2020-CC/train_data/images_crop/'
 testDataDirectory = 'VisDrone2020-CC/test_data/images/'
 
 if not os.path.exists(trainDataDirectory):
     os.makedirs(trainDataDirectory)
-    os.makedirs(trainDataDirectory.replace('images','gt_density_map'))
-    os.makedirs(trainDataDirectory.replace('images','gt_density_show'))
-    os.makedirs(trainDataDirectory.replace('images','gt_fidt_map'))
-    os.makedirs(trainDataDirectory.replace('images','images_crop'))
+    os.makedirs(trainDataDirectory.replace('images_crop','gt_density_map'))
+    os.makedirs(trainDataDirectory.replace('images_crop','gt_density_show'))
     
 if not os.path.exists(testDataDirectory):
     os.makedirs(testDataDirectory)
@@ -35,9 +33,6 @@ for k in range(1,112):
         else:
             gt_paths.append(path + '/00' + str(k) + '.txt')
 
-#for path in path_sets:
-#    for img_path in glob.glob(os.path.join(path, '*.txt')):
-#        gt_paths.append(img_path)
 gt_paths.sort()
 print("There are " + str(len(gt_paths)) + " directories to retrieve images from")
 
@@ -79,14 +74,14 @@ for i in trange(len(gt_paths)):
         secondSplit = img_path.split('/')[3]
         save_filename = firstSplit + '_' + secondSplit
 
-        Img_data = cv2.imread(img_path)
+        img_data = cv2.imread(img_path)
         
-        rate_h = 768.0 / Img_data.shape[0] # Altezza
-        rate_w = 1156.0 / Img_data.shape[1] # Larghezza
-        Img_data = cv2.resize(Img_data, (0, 0), fx=rate_w, fy=rate_h)
+        rate_h = 768.0 / img_data.shape[0] # Altezza
+        rate_w = 1156.0 / img_data.shape[1] # Larghezza
+        img_data = cv2.resize(img_data, (0, 0), fx=rate_w, fy=rate_h)
         
-        kpoint = np.zeros((Img_data.shape[0], Img_data.shape[1]))
-        d_map = (np.zeros((Img_data.shape[0], Img_data.shape[1])) + 255).astype(np.uint8)
+        kpoint = np.zeros((img_data.shape[0], img_data.shape[1]))
+        d_map = (np.zeros((img_data.shape[0], img_data.shape[1])) + 255).astype(np.uint8)
 
         # Da capire se questo influisce sulle immagini di Test o meno
         if(gt_path.split('/')[2].split('.')[0] in trainList):
@@ -111,49 +106,14 @@ for i in trange(len(gt_paths)):
                    if gt_y < kpoint.shape[0] and gt_x < kpoint.shape[1]:
                         kpoint[int(gt_y), int(gt_x)] = 1
                         d_map[int(gt_y)][int(gt_x)] = d_map[int(gt_y)][int(gt_x)] - 255
-        
-        # Salvataggio immagini ridimensionate in 1156x768 e B&W
-        # in VisDrone2020-CC/train_data/images/00001_00001.jpg oppure
-        # in VisDrone2020-CC/test_data/images/00001_00001.jpg etc.
-        # -- Solo per visualizzazione --
-        if(gt_path.split('/')[2].split('.')[0] in trainList):
-            save_img = trainDataDirectory + save_filename
-        else:
-            save_img = testDataDirectory + save_filename
-        Img_data = cv2.cvtColor(Img_data, cv2.COLOR_BGR2GRAY)
-        #cv2.imwrite(save_img, Img_data)
-        
-        # Salvataggio immagini ridimensionate in 1156x768
-        # in VisDrone2020-CC/train_data/gt_fidt_map/00001_00001.h5 oppure
-        # in VisDrone2020-CC/test_data/gt_fidt_map/00001_00001.h5 etc.
-        # dove mi salvo i kpoint e la density_map
-        density_map = gaussian_filter(kpoint, 4)
-        kpoint = kpoint.astype(np.uint8)
-        density_map = density_map.astype(np.float64)
-        density_map = density_map / np.max(density_map) * 255
-        density_map = density_map.astype(np.uint8)
-        with h5py.File(save_img.replace('.jpg', '.h5').replace('images', 'gt_fidt_map'), 'w') as hf:
-            hf['kpoint'] = kpoint
-            hf['density_map'] = density_map
 
-        # Salvataggio immagini ridimensionate in 
-        # 1156x768 a cui viene applicato il GaussianFilter
-        # in VisDrone2020-CC/train_data/gt_density_show/00001_00001.jpg oppure
-        # in VisDrone2020-CC/test_data/gt_density_show/00001_00001.jpg etc.
-        # -- Solo per visualizzazione --
-        density_map = density_map
-        density_map = density_map / np.max(density_map) * 255
-        density_map = density_map.astype(np.uint8)
-        density_map = cv2.applyColorMap(density_map, 2)
-        density_map.astype(np.float64)
-        cv2.imwrite(save_img.replace('images', 'gt_density_show').replace('jpg', 'jpg'), density_map)
-        
-        #-----------------------#
-        
+        img_data = cv2.cvtColor(img_data, cv2.COLOR_BGR2GRAY)
+        kpoint = kpoint.astype(np.uint8)
+
         # Se ci troviamo in un file della trainList, allora ci prendiamo 6 sub-images
         # e per ognuna di queste mi calcolo il ground_truth
         if(gt_path.split('/')[2].split('.')[0] in trainList):
-            height, width = Img_data.shape[0], Img_data.shape[1]
+            height, width = img_data.shape[0], img_data.shape[1]
             m = int(width / 384)
             n = int(height / 384)
             
@@ -163,15 +123,14 @@ for i in trange(len(gt_paths)):
                 for j in range(0, n):
                     # Per ogni immagine, la divido in parti uguali da 384x384 ciascuno
                     # sia per l'altezza, sia per la larghezza.
-                    crop_img = Img_data[j * 384: 384 * (j + 1), i * 384:(i + 1) * 384, ]
+                    crop_img = img_data[j * 384: 384 * (j + 1), i * 384:(i + 1) * 384, ]
                     crop_kpoint = kpoint[j * 384: 384 * (j + 1), i * 384:(i + 1) * 384]
                     gt_count = np.sum(crop_kpoint).astype(np.float32) # ---> Il ground_truth sarà la somma
                                                                       #      di tutti i gt di tutte le sub-immagini
                     # Salvataggio immagini ridimensionate in 
-                    # 384x384 a cui viene applicato il GaussianFilter
-                    # in VisDrone2020-CC/train_data/images_crop/00001_00001_0_0.jpg etc.
+                    # 384x384 in VisDrone2020-CC/train_data/images_crop/00001_00001_0_0.jpg etc.
                     # -- Solo per visualizzazione --
-                    save_img = trainDataDirectory.replace('images','images_crop') + save_filename.split("_")[0] + '_' + save_filename.split("_")[1].split(".")[0] + '_' + str(i) + '_' + str(j) + '.jpg' 
+                    save_img = trainDataDirectory + save_filename.split("_")[0] + '_' + save_filename.split("_")[1].split(".")[0] + '_' + str(i) + '_' + str(j) + '.jpg' 
                     cv2.imwrite(save_img, crop_img)
 
                     # Salvataggio immagini ridimensionate in 384x384 all'interno di
@@ -180,9 +139,8 @@ for i in trange(len(gt_paths)):
                     h5_path = save_img.replace('images_crop', 'gt_density_map').replace('.jpg', '.h5')
                     with h5py.File(h5_path, 'w') as hf:
                         hf['gt_count'] = gt_count
-                                 
-                    #print("\tPath: " + save_img)
-                    #print("\t\t- Ground truth count for " + h5_path + ": " + str(gt_count))
+                        hf['crop_img'] = crop_img
+                        hf['crop_kpoint'] = crop_kpoint
         
         # Se il file che stiamo trattando non si trova all'interno della testList
         # salviamolo nella cartella opportuna "VisDrone2020-CC/test_data/"
@@ -192,12 +150,13 @@ for i in trange(len(gt_paths)):
             # in VisDrone2020-CC/test_data/images/00011/00001.jpg etc.
             # -- Solo per visualizzazione --
             save_img = testDataDirectory + save_filename.split("_")[0] + '_' + save_filename.split("_")[1].split(".")[0] + '.jpg' 
-            cv2.imwrite(save_img, Img_data)
+            cv2.imwrite(save_img, img_data)
             
             gt_count = np.sum(kpoint).astype(np.float32)
             h5_path = save_img.replace('images', 'gt_density_map').replace('.jpg', '.h5')
             with h5py.File(h5_path, 'w') as hf:
                 hf['gt_count'] = gt_count
+                hf['img_data'] = img_data
                 
             #print("\tPath: " + save_img)
             #print("\t\t- Ground truth count for " + h5_path + ": " + str(gt_count)) 

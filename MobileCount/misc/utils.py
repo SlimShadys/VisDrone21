@@ -1,7 +1,6 @@
 import numpy as np
 import os
 import time
-import shutil
 
 import torch
 from torch import nn
@@ -150,18 +149,17 @@ class AverageMeter(object):
         self.count = 0
 
     def update(self, cur_val):
-        if hasattr(cur_val, "__iter__"):
+        if hasattr(cur_val, '__iter__'):
             for val in cur_val:
-                self._update(val)
+                self.cur_val = val
+                self.sum += val
+                self.count += 1
+                self.avg = self.sum / self.count
         else:
-            self._update(cur_val)
-
-    def update(self, cur_val):
-        self.cur_val = cur_val
-        self.sum += cur_val
-        self.count += 1
-        self.avg = self.sum / self.count
-
+            self.cur_val = cur_val
+            self.sum += cur_val
+            self.count += 1
+            self.avg = self.sum / self.count
 
 class AverageCategoryMeter(object):
     """Computes and stores the average and current value"""
