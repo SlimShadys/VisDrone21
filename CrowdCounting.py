@@ -1,26 +1,42 @@
 from torch.utils.data import Dataset
 import os
 import pandas as pd
+import numpy as np
 from torchvision.io import read_image
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import random
-    
+from TransCrowd.utils import dataframe_load_test
+
+testList = np.loadtxt('VisDrone2020-CC/testlist.txt', delimiter=" ", dtype="str") 
+
 class CustomDataset(Dataset):
     def __init__(self, annotations_file, img_dir, transform=None, target_transform=None):
-        self.img_labels = pd.read_csv(annotations_file, sep=",", header=None)
+
+        if(annotations_file.split('/')[2].split('.')[0] in testList):
+            df = dataframe_load_test(annotations_file)
+        else:
+            df = pd.read_csv(annotations_file, sep=",", header=None, index_col=False)
+
+        df = df.reset_index(drop=True)
+        
+        df.columns = ['PICTURE', 'X', 'Y']
+
+        df.sort_values(by=['PICTURE'])
+
+        self.img_labels = df
         self.img_dir = img_dir
         self.transform = transform
         self.target_transform = target_transform
         
     def __getitem__(self, idx):  
-        imageShortName = self.img_labels.iloc[idx, 0];
+        imageShortName = self.img_labels.iloc[idx, 0]
         
         # Se il nome è minore di 10, allora concateniamo 4 zeri, altrimenti 3
         if imageShortName < 10:
-            imgFullName = "0000" + str(imageShortName) + ".jpg";
+            imgFullName = "0000" + str(imageShortName) + ".jpg"
         else:
-            imgFullName = "000" + str(imageShortName) + ".jpg";
+            imgFullName = "000" + str(imageShortName) + ".jpg"
             
         # Prendo l'immagine completa (Es. "00015.jpg")
         img_path = os.path.join(self.img_dir, imgFullName)
@@ -57,7 +73,7 @@ def getRandomAnnotation():
     annotationValue = "0"
     randomAnnotation = 0
     
-    randomAnnotation = random.randint(0, 110)
+    randomAnnotation = random.randint(0, 112)
 
     if (randomAnnotation < 10):
         val = 4
@@ -67,7 +83,7 @@ def getRandomAnnotation():
         val = 2
 
     while (len(annotationValue) < val):
-        annotationValue = "0" + annotationValue;
+        annotationValue = "0" + annotationValue
 
     annotationValue += str(randomAnnotation)
     return annotationValue

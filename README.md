@@ -12,10 +12,11 @@ For official implementation, have a look [here](https://github.com/dk-liang/Tran
 # Run the notebook
 You can run the whole process via the *Google Colab Notebook* that can be found [here](https://colab.research.google.com/drive/1GICGGQyNmUErkBJ2iHDBGvVVg6AiJ37_).
 
-It is highly suggested to run the notebook on a *Pro* account, since it requires at least **16GB** of RAM (Colab Free gives **12GB**).
+It is highly suggested to run the notebook on a *Pro* account, since loading VisDrone image list requires at least **16GB** of RAM (Colab Free gives **12GB**).
 
 # Credits
 - Gianmarco Scarano (*Owner*)
+- Gennaro Vessio (*Supervisor*)
 - Pasquale De Marinis (*Test annotations converter*)
 - Credits for TransCrowd implementation:
 ```

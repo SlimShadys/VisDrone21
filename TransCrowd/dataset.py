@@ -31,7 +31,6 @@ class listDataset(Dataset):
     def __getitem__(self, index):
         assert index <= len(self), 'index range error'
 
-
         fname = self.lines[index]['fname']
         img = self.lines[index]['img']
         gt_count = self.lines[index]['gt_count']

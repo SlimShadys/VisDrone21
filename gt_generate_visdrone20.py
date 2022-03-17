@@ -13,13 +13,10 @@ testDataDirectory = 'VisDrone2020-CC/test_data/images/'
 if not os.path.exists(trainDataDirectory):
     os.makedirs(trainDataDirectory)
     os.makedirs(trainDataDirectory.replace('images_crop','gt_density_map'))
-    os.makedirs(trainDataDirectory.replace('images_crop','gt_density_show'))
     
 if not os.path.exists(testDataDirectory):
     os.makedirs(testDataDirectory)
     os.makedirs(testDataDirectory.replace('images','gt_density_map'))
-    os.makedirs(testDataDirectory.replace('images','gt_density_show'))
-    os.makedirs(testDataDirectory.replace('images','gt_fidt_map'))
     
 gt_paths=[]
 testList = np.loadtxt('VisDrone2020-CC/testlist.txt', delimiter=" ", dtype="str") 

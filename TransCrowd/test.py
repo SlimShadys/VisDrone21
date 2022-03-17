@@ -1,20 +1,30 @@
 from __future__ import division
-import warnings
-from Networks.models import base_patch16_384_token, base_patch16_384_gap
-import torch.nn as nn
-from torchvision import transforms
-import dataset
-import math
-from utils import setup_seed
-import torch
-import os
+
 import logging
+import math
+
+import os
+os.environ['NUMEXPR_NUM_THREADS'] = '8'
+
+import platform
+import warnings
+
+if platform.system() == "Linux":
+    import shutil 
+
 import nni
-from nni.utils import merge_parameter
-from config import return_args, args
 import numpy as np
-from tqdm import trange
+import torch
+import torch.nn as nn
+from nni.utils import merge_parameter
+from torchvision import transforms
+from tqdm import tqdm, trange
+
+import dataset
+from config import args, return_args
 from image import load_data
+from Networks.models import base_patch16_384_gap, base_patch16_384_token
+from utils import setup_seed
 
 warnings.filterwarnings('ignore')
 
@@ -23,6 +33,41 @@ setup_seed(args.seed)
 logger = logging.getLogger('mnist_AutoML')
 
 def main(args):
+
+    # Args for debugging through IDE
+    #args['dataset'] = 'VisDrone'                   # Replace with you own dataset
+    #args['save_path'] = 'save_file/VisDrone'       # Directory where to save models
+    #args['uses_drive'] = False                     # Whether to choose Drive to save models
+    #args['model_type'] = 'gap'                     # Choose your model type (Token) / (Gap)
+    #args['loadModel'] = 'model_best_Group_B.pth'   # Load weights from previous model
+
+    # We set workers according to the warning about max threads 
+    # by NumExpr and set it to 8 - (i5-10600 @3.30 GHz).
+    # Change accordingly to your CPU at line 6.
+    args['workers'] = int(os.environ['NUMEXPR_NUM_THREADS'])
+
+    # Print the arguments
+    print("Starting validation with the following configuration:")
+    print("Batch size: {}".format(args['batch_size']))
+    print("Dataset: {}".format(args['dataset']))
+    print("Load model: {}".format(args['loadModel']))
+    print("Model type: {}".format(args['model_type']))
+    print("Save path: {}".format(args['save_path']))
+    print("Uses Drive: {}".format(args["uses_drive"]))
+    print("Workers: {}".format(args['workers']))
+    print("---------------------------------------------------")
+
+    if platform.system() == "Linux" and args['uses_drive']:
+        print("----------------------------")
+        print("** Google Drive Sign In **")
+        if not(os.path.exists("../../gdrive/")):
+            print("No Google Drive path detected! Please mount it before running this script or disable ""uses_drive"" flag!")
+            print("----------------------------")
+            exit(0)
+        else:
+            print("** Successfully logged in! **")
+            print("----------------------------")
+
     if args['dataset'] == 'ShanghaiA':
         test_file = './npydata/ShanghaiA_test.npy'
     elif args['dataset'] == 'ShanghaiB':
@@ -36,25 +81,21 @@ def main(args):
     elif args['dataset'] == 'VisDrone':
         test_file = './npydata/visDrone_test.npy'
 
-    ''' For testing in Spyder '''
-    #args['pre'] = './save_file/VisDrone/model_best.pth'
-    #args['batch_size'] = 8
-    #args['epochs'] = 50
-    #args['dataset'] = 'VisDrone'
-    #test_file = './npydata/visDrone_test.npy'
-    
     with open(test_file, 'rb') as outfile:
         val_list = np.load(outfile).tolist()
 
     print("Lenght Test list: " + str(len(val_list)))
 
-    try:
-        print('*-----------------------------------------*')
+    if(torch.cuda.is_available()):
+        device = torch.device("cuda")
+        print("===================================================")
         print('Cuda available: {}'.format(torch.cuda.is_available()))
         print("GPU: " + torch.cuda.get_device_name(torch.cuda.current_device()))
-        print('*-----------------------------------------*')
-    except:
-        pass
+        print("Total memory: {:.1f} GB".format((float(torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)))))
+        print("===================================================")
+    else:
+        device = torch.device("cpu")
+        print('Cuda not available. Using CPU.')
 
     os.environ['CUDA_VISIBLE_DEVICES'] = args['gpu_id']
 
@@ -62,48 +103,77 @@ def main(args):
         model = base_patch16_384_token(pretrained=True)
     else:
         model = base_patch16_384_gap(pretrained=True)
+    print("===================================================")
 
     model = nn.DataParallel(model, device_ids=[0])
     model = model.cuda()
 
-    criterion = nn.L1Loss(size_average=False).cuda()
-
-    optimizer = torch.optim.Adam(
-        [  #
-            {'params': model.parameters(), 'lr': args['lr']},
-        ], lr=args['lr'], weight_decay=args['weight_decay'])
-
-    scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=[300], gamma=0.1, last_epoch=-1)
-    print(args['pre'])
-
-    # args['save_path'] = args['save_path'] + str(args['rdt'])
-    print(args['save_path'])
+    print("Save path: {}".format(args['save_path']))
     if not os.path.exists(args['save_path']):
         os.makedirs(args['save_path'])
 
-    if args['pre']:
-        if os.path.isfile(args['pre']):
-            print("=> loading checkpoint '{}'".format(args['pre']))
-            checkpoint = torch.load(args['pre'])
-            model.load_state_dict(checkpoint['state_dict'], strict=False)
-            args['start_epoch'] = checkpoint['epoch']
-            args['best_pred'] = checkpoint['best_prec1']
+    if(args['uses_drive']):
+        if not os.path.exists(F"../../gdrive/MyDrive/VisDroneResults/{args['save_path']}"):
+            os.makedirs(F"../../gdrive/MyDrive/VisDroneResults/{args['save_path']}")
+
+    if args['loadModel']:
+        print("You specified a pre-loading directory for a model.")
+        print("The directory is: {}".format(args["loadModel"]))
+        if os.path.isfile(args["loadModel"]):
+            print("=> Loading model '{}'".format(args["loadModel"]))
+            modelLoaded = torch.load(args['loadModel'], device)
+            model.load_state_dict(modelLoaded['state_dict'], strict=False)
+            # Best precision
+            try:
+                bestPrecision = modelLoaded['best_prec1']
+                print("- Best precision from model: {}".format(bestPrecision))
+            except:
+                bestPrecision = 0
+                print("- No best precision present in this model")
+                pass
+            print("Custom model loaded successfully")
         else:
-            print("=> no checkpoint found at '{}'".format(args['pre']))
+            print("=> No model found at '{}'".format(args["loadModel"]))
+            print("Are you sure the directory / model exist? Exiting..")
+            exit(0)
+        print("===================================================")
 
+    print(F"Setting {args['workers']} threads for Torch...")
     torch.set_num_threads(args['workers'])
-
-    print(args['best_pred'], args['start_epoch'])
+    print("Successfully set threads.")
 
     test_data = pre_data(val_list, args, train=False)
+    print("===================================================")
 
-    '''inference'''
+    # Inference
     prec1 = validate(test_data, model, args)
 
-    print(' * best MAE {mae:.3f} '.format(mae=args['best_pred']))
+    maeModel = '- Best MAE from model: {mae:.9f} '.format(mae=bestPrecision)
+    maeValidation = '- Best MAE from validation: {mae:.9f} '.format(mae=prec1)
+
+    print("===================================================")
+    print("Validation ended successfully.")
+    print(maeModel)
+    print(maeValidation)
+    print("===================================================")
+
+    f = open(args['save_path'] + "/res.txt", "a")
+    f.write(maeModel)
+    f.write("\n===================================================\n")
+    f.write(maeValidation)
+    f.close()
+
+    if platform.system() == "Linux" and args['uses_drive']:
+        try:
+            shutil.copy(args['save_path'] + "/res.txt", F"../../gdrive/MyDrive/VisDroneResults/{args['save_path']}/res.txt")
+            print(F"Uploaded result file in: /content/gdrive/MyDrive/VisDroneResults/{args['save_path']}/res.txt")
+        except:
+            print("Could not save file to Drive.")
+            pass
+
 
 def pre_data(val_list, args, train):
-    print("Pre_load dataset ......")
+    print("Pre-loading dataset ......")
     data_keys = {}
     count = 0
     for j in trange(len(val_list)):
@@ -124,7 +194,8 @@ def pre_data(val_list, args, train):
     return data_keys
 
 def validate(test_data, model, args):
-    print('begin test')
+    print("\nStarting validation...")
+
     batch_size = 1
     test_loader = torch.utils.data.DataLoader(
         dataset.listDataset(test_data, args['save_path'],
@@ -135,14 +206,16 @@ def validate(test_data, model, args):
 
                             ]),
                             args=args, train=False),
-        batch_size=1)
+        batch_size=batch_size)
+
+    batch_bar = tqdm(total=len(test_loader), desc="Batch", position=0)
 
     model.eval()
 
     mae = 0.0
     mse = 0.0
 
-    for i, (fname, img, gt_count) in enumerate(test_loader):
+    for idx, (fname, img, gt_count) in tqdm(enumerate(test_loader)):
 
         img = img.cuda()
         if len(img.shape) == 5:
@@ -159,14 +232,10 @@ def validate(test_data, model, args):
         mae += abs(gt_count - count)
         mse += abs(gt_count - count) * abs(gt_count - count)
 
-        if i % 15 == 0:
-            print('\n{fname}:\n- Gt {gt:.2f} - Pred {pred}'.format(fname=fname[0], gt=gt_count, pred=count))
+        batch_bar.update(1)
 
     mae = mae * 1.0 / (len(test_loader) * batch_size)
     mse = math.sqrt(mse / (len(test_loader)) * batch_size)
-
-    nni.report_intermediate_result(mae)
-    print(' \n* MAE {mae:.3f}\n'.format(mae=mae), '* MSE {mse:.3f}'.format(mse=mse))
 
     return mae
 
