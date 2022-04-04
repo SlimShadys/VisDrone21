@@ -1,17 +1,23 @@
 from PIL import Image
 import numpy as np
 import h5py
+import os
 import cv2
 
-def load_data(img_path, args, train):
+def load_data(gt_path, args):
 
-    if(train):
-        imageDir = 'images_crop'
+    # Train dataset
+    if(os.path.isfile(gt_path.replace('.h5', '.jpg').replace('gt_density_map', "images_crop"))):
+        img_path = gt_path.replace('.h5', '.jpg').replace('gt_density_map', "images_crop")
+    # Validation dataset
+    elif(os.path.isfile(gt_path.replace('.h5', '.jpg').replace('gt_density_map', "images"))):
+        img_path = gt_path.replace('.h5', '.jpg').replace('gt_density_map', "images")
     else:
-        imageDir = 'images'
+        print(F"Error while opening img path of {gt_path}")
+        print("Please check your GT / .JPG path first. Exiting ...")
+        exit(0)
 
-    img_path = img_path.replace('.h5', '.jpg').replace('gt_density_map', imageDir)
-    gt_path = img_path.replace('.jpg', '.h5').replace(imageDir, 'gt_density_map')
+    #gt_path = img_path.replace('.jpg', '.h5').replace(imageDir, 'gt_density_map')
     
     img = Image.open(img_path).convert('RGB')
 
@@ -21,7 +27,7 @@ def load_data(img_path, args, train):
             gt_count = np.asarray(gt_file['gt_count'])
             break  # Success!
         except OSError:
-            print("load error:", img_path)
+            print(F"Load error: {img_path}")
             cv2.waitKey(1000)  # Wait a bit
 
     img = img.copy()

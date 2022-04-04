@@ -1,5 +1,5 @@
 # VisDrone21
-## Crowd counting through drones using VisDrone Dataset / Neural Networks via TransCrowd transformer
+## Crowd counting through drones using VisDrone 2020/2021 Dataset & Neural Networks via TransCrowd transformer
 
 The VisDrone Dataset could be found [here](https://github.com/VisDrone/VisDrone-Dataset).
 

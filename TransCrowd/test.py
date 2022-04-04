@@ -32,10 +32,14 @@ setup_seed(args.seed)
 
 logger = logging.getLogger('mnist_AutoML')
 
+# VisDrone20
+MEAN = [0.485, 0.456, 0.406]
+STD = [0.229, 0.224, 0.225]
+
 def main(args):
 
     # Args for debugging through IDE
-    #args['dataset'] = 'VisDrone'                   # Replace with you own dataset
+    #args['dataset'] = 'VisDrone20'                   # Replace with you own dataset
     #args['save_path'] = 'save_file/VisDrone'       # Directory where to save models
     #args['uses_drive'] = False                     # Whether to choose Drive to save models
     #args['model_type'] = 'gap'                     # Choose your model type (Token) / (Gap)
@@ -78,8 +82,10 @@ def main(args):
         test_file = './npydata/jhu_val.npy'
     elif args['dataset'] == 'NWPU':
         test_file = './npydata/nwpu_val.npy'
-    elif args['dataset'] == 'VisDrone':
-        test_file = './npydata/visDrone_test.npy'
+    elif args['dataset'] == 'VisDrone20':
+        test_file = './npydata/visDrone20_test.npy'
+    elif args['dataset'] == 'VisDrone21':
+        test_file = './npydata/visDrone21_train.npy'
 
     with open(test_file, 'rb') as outfile:
         val_list = np.load(outfile).tolist()
@@ -179,7 +185,7 @@ def pre_data(val_list, args, train):
     for j in trange(len(val_list)):
         Img_path = val_list[j]
         fname = os.path.basename(Img_path)
-        img, gt_count = load_data(Img_path, args, train)
+        img, gt_count = load_data(args['dataset'], Img_path, args, train)
 
         blob = {}
         blob['img'] = img
@@ -201,8 +207,7 @@ def validate(test_data, model, args):
         dataset.listDataset(test_data, args['save_path'],
                             shuffle=False,
                             transform=transforms.Compose([
-                                transforms.ToTensor(), transforms.Normalize(mean=[0.485, 0.456, 0.406],
-                                                                            std=[0.229, 0.224, 0.225]),
+                                transforms.ToTensor(), transforms.Normalize(MEAN,STD),
 
                             ]),
                             args=args, train=False),

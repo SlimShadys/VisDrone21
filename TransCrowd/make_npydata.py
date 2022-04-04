@@ -3,7 +3,7 @@ import numpy as np
 import argparse
 
 parser = argparse.ArgumentParser(description="Configuration train phase")
-parser.add_argument("-d", "--dataset", type=str, default="VisDrone", choices=["VisDrone", "ShanghaiTech"], help='Choose the desired dataset')
+parser.add_argument("-d", "--dataset", type=str, default="VisDrone20", choices=["VisDrone20", "VisDrone21", "ShanghaiTech"], help='Choose the desired dataset')
 args = parser.parse_args()
 
 if not os.path.exists('./npydata'):
@@ -11,7 +11,7 @@ if not os.path.exists('./npydata'):
 
 dataset = args.dataset
 
-if(dataset == 'VisDrone'):
+if(dataset == 'VisDrone20'):
     try:
         VisDroneTrain_path = '../VisDrone2020-CC/train_data/gt_density_map/'
         VisDroneTest_path = '../VisDrone2020-CC/test_data/gt_density_map/'
@@ -22,20 +22,45 @@ if(dataset == 'VisDrone'):
                 train_list.append(VisDroneTrain_path + filename)
 
         train_list.sort()
-        np.save('./npydata/visDrone_train.npy', train_list)
+        np.save('./npydata/visDrone20_train.npy', train_list)
         
         test_list = []
         for filename in os.listdir(VisDroneTest_path):
             if filename.split('.')[1] == 'h5':
                 test_list.append(VisDroneTest_path + filename)
         test_list.sort()
-        np.save('./npydata/visDrone_test.npy', test_list)
+        np.save('./npydata/visDrone20_test.npy', test_list)
 
-        print("Generate VisDrone image list successfully")
+        print("Generate VisDrone 2020 image list successfully")
         print("\t- Train list: " + str(len(train_list)))
         print("\t- Test list: " + str(len(test_list)))
     except:
-        print("The VisDroneTrain dataset path is wrong. Please check you path.")
+        print("The VisDrone2020 dataset path is wrong. Please check you path.")
+elif(dataset == 'VisDrone21'):
+    try:
+        VisDroneTrain_path = '../VisDrone2021-CC/DroneRGBT/Train/gt_density_map'
+        VisDroneTest_path = '../VisDrone2021-CC/DroneRGBT/Val/gt_density_map/'
+
+        train_list = []
+        for filename in os.listdir(VisDroneTrain_path):
+            if filename.split('.')[1] == 'h5':
+                train_list.append(VisDroneTrain_path + '/' + filename)
+
+        train_list.sort()
+        np.save('./npydata/visDrone21_train.npy', train_list)
+        
+        test_list = []
+        for filename in os.listdir(VisDroneTest_path):
+            if filename.split('.')[1] == 'h5':
+                test_list.append(VisDroneTest_path + filename)
+        test_list.sort()
+        np.save('./npydata/visDrone21_test.npy', test_list)
+
+        print("Generate VisDrone 2021 image list successfully")
+        print("\t- Train list: " + str(len(train_list)))
+        print("\t- Test list: " + str(len(test_list)))
+    except:
+        print("The VisDrone2021 dataset path is wrong. Please check you path.")
 elif(dataset == 'ShanghaiTech'):
     try:
         shanghaiAtrain_path = '/home/dkliang/projects/synchronous/dataset/ShanghaiTech/part_A_final/train_data/images_crop/'

@@ -35,7 +35,7 @@ class listDataset(Dataset):
         img = self.lines[index]['img']
         gt_count = self.lines[index]['gt_count']
 
-        '''data augmention'''
+        '''data augmentation'''
         if self.train == True:
             if random.random() > 0.5:
                 img = img.transpose(Image.FLIP_LEFT_RIGHT)

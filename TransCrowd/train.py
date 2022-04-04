@@ -48,8 +48,8 @@ logger = logging.getLogger('mnist_AutoML')
 def main(args):
     
     # Args for debugging through IDE
-    #args['dataset'] = 'VisDrone'                # Replace with you own dataset
-    #args['save_path'] = './save_file/VisDrone'  # Directory where to save models
+    #args['dataset'] = 'VisDrone20'                # Replace with you own dataset
+    #args['save_path'] = './save_file/VisDrone20'  # Directory where to save models
     #args['uses_drive'] = False                  # Whether to choose Drive to save models
     #args['model_type'] = 'gap'                  # Choose your model type (Token) / (Gap)
     #args['batch_size'] = 8                      # Batch size for training
@@ -78,7 +78,6 @@ def main(args):
     print("Uses Drive: {}".format(args["uses_drive"]))
     print("Weight decay: {}".format(args['weight_decay']))
     print("Workers: {}".format(args['workers']))
-    print("---------------------------------------------------")
     
     if platform.system() == "Linux" and args['uses_drive']:
         print("----------------------------")
@@ -106,9 +105,12 @@ def main(args):
     elif args['dataset'] == 'NWPU':
         train_file = './npydata/nwpu_train.npy'
         test_file = './npydata/nwpu_val.npy'
-    elif args['dataset'] == 'VisDrone':
-        train_file = './npydata/visDrone_train.npy'
-        test_file = './npydata/visDrone_test.npy'
+    elif args['dataset'] == 'VisDrone20':
+        train_file = './npydata/visDrone20_train.npy'
+        test_file = './npydata/visDrone20_test.npy'
+    elif args['dataset'] == 'VisDrone21':
+        train_file = './npydata/visDrone21_train.npy'
+        test_file = './npydata/visDrone21_test.npy'
 
     with open(train_file, 'rb') as outfile:
         train_list = np.load(outfile).tolist()
@@ -317,17 +319,17 @@ def main(args):
     print("Done training the model.")
     print('Best MAE was: {mae:.3f} '.format(mae=args['best_pred']))
 
-def pre_data(train_list, args, train):
+def pre_data(image_list, args, train):
     if(train):
         print("Pre loading training dataset ......")
     else:
         print("Pre loading testing dataset ......")
     data_keys = {}
     count = 0
-    for j in trange(len(train_list)):
-        Img_path = train_list[j]
+    for j in trange(len(image_list)):
+        Img_path = image_list[j]
         fname = os.path.basename(Img_path)
-        img, gt_count = load_data(Img_path, args, train)
+        img, gt_count = load_data(Img_path, args)
 
         blob = {}
         blob['img'] = img

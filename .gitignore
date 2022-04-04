@@ -3,10 +3,13 @@
 # VisDrone
 VisDrone2020-CC/test_data/
 VisDrone2020-CC/train_data/
+VisDrone2021-CC/*
 
 # TransCrowd
 TransCrowd/__pycache__/*
 TransCrowd/Networks/__pycache__/*
+TransCrowd/loadModel/*
+TransCrowd/npydata/
 *.pth
 
 # MobileCount
